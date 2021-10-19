@@ -119,14 +119,11 @@ impl Worker {
 /// Sends command for execution
 /// Assumes STDIN/STDOUT unwanted.
 pub fn exec(command: &str) -> Error {
-    Command::new(command)
+    Command::new("sh")
+        .arg("-c")
+        .arg(&command)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .spawn()?;
     Ok(())
-}
-
-async fn timeout(mills: u64) {
-    use tokio::time::{sleep, Duration};
-    sleep(Duration::from_millis(mills)).await;
 }
