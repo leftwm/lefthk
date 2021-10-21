@@ -1,4 +1,5 @@
 use crate::worker::Worker;
+use clap::{App, Arg};
 
 pub mod config;
 pub mod errors;
@@ -8,6 +9,21 @@ pub mod xkeysym_lookup;
 pub mod xwrap;
 
 fn main() {
+    let matches = App::new("LeftHK Hot Key Daemon")
+        .about("a simple hotkey daemon for LeftWM")
+        .arg(
+            Arg::with_name("quit")
+                .short("q")
+                .long("quit")
+                .help("Quit a running daemon instance"),
+        )
+        .arg(
+            Arg::with_name("reload")
+                .short("r")
+                .long("reload")
+                .help("Reload daemon to apply changes to config"),
+        )
+        .get_matches();
     log::info!("lefthk booted!");
     pretty_env_logger::init();
     loop {
