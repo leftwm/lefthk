@@ -19,10 +19,11 @@ fn main() {
                 Ok(config) => config,
                 Err(err) => {
                     log::error!("{} Exiting program.", err);
-                    return;
+                    std::process::exit(1);
                 }
             };
-            let mut worker = Worker::new(config.keybind);
+            println!("{:?}", config);
+            let mut worker = Worker::new(config.keybinds);
 
             rt.block_on(worker.event_loop());
 

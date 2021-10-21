@@ -1,4 +1,5 @@
 use crate::errors::{LeftError, Result};
+use kdl::KdlNode;
 use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
 use serde::{Deserialize, Serialize};
 use std::os::unix::prelude::AsRawFd;
@@ -15,7 +16,20 @@ pub enum Command {
     Kill,
 }
 
-#[derive(Serialize, Deserialize)]
+impl TryFrom<String> for Command {
+    type Error = LeftError;
+
+    fn try_from(value: String) -> Result<Self> {
+        match value {
+            s if s == "Execute" => Ok(Self::Execute),
+            s if s == "Reload" => Ok(Self::Reload),
+            s if s == "Kill" => Ok(Self::Kill),
+            _ => Err(LeftError::CommandNotFound),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Keybind {
     pub command: Command,
     pub value: Option<String>,
@@ -23,18 +37,70 @@ pub struct Keybind {
     pub key: String,
 }
 
-#[derive(Serialize, Deserialize)]
+fn strip_quotes(mut string: String) -> String {
+    string.retain(|c| c != '\"');
+    string
+}
+
+impl TryFrom<&KdlNode> for Keybind {
+    type Error = LeftError;
+
+    fn try_from(node: &KdlNode) -> Result<Self> {
+        let command: Command = Command::try_from(node.name.to_string())?;
+        let value: Option<String> = node.values.get(0).map(|val| strip_quotes(val.to_string()));
+        let modifier_node: &KdlNode = node
+            .children
+            .iter()
+            .find(|child| child.name == "modifier")
+            .ok_or(LeftError::ModifierNotFound)?;
+        let modifier: Vec<String> = modifier_node
+            .values
+            .iter()
+            .map(|val| strip_quotes(val.to_string()))
+            .collect();
+        let key_node: &KdlNode = node
+            .children
+            .iter()
+            .find(|child| child.name == "key")
+            .ok_or(LeftError::KeyNotFound)?;
+        let key: String = key_node
+            .values
+            .iter()
+            .map(|val| strip_quotes(val.to_string()))
+            .collect();
+        Ok(Self {
+            command,
+            value,
+            modifier,
+            key,
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
-    pub keybind: Vec<Keybind>,
+    pub keybinds: Vec<Keybind>,
+}
+
+impl Config {
+    pub fn new(keybinds: Vec<Keybind>) -> Self {
+        Self { keybinds }
+    }
 }
 
 pub fn load() -> Result<Config> {
     let path = BaseDirectories::with_prefix("lefthk")?;
     fs::create_dir_all(&path.get_config_home())?;
-    let file_name = path.place_config_file("config.toml")?;
+    let file_name = path.place_config_file("config.kdl")?;
     if Path::new(&file_name).exists() {
         let contents = fs::read_to_string(file_name)?;
-        return toml::from_str::<Config>(&contents).map_err(Into::into);
+        let kdl = kdl::parse_document(contents)?;
+        let keybinds = kdl
+            .iter()
+            .map(Keybind::try_from)
+            .filter(Result::is_ok)
+            .collect::<Result<Vec<Keybind>>>()?;
+        return Ok(Config::new(keybinds));
     }
     Err(LeftError::NoConfigFound)
 }
@@ -58,7 +124,7 @@ impl Watcher {
         let path =
             BaseDirectories::with_prefix("lefthk").expect("ERROR: Could not find base directory.");
         let file_name = path
-            .find_config_file("config.toml")
+            .find_config_file("config.kdl")
             .expect("ERROR: Could not find config file.");
         let mut flags = AddWatchFlags::empty();
         flags.insert(AddWatchFlags::IN_MODIFY | AddWatchFlags::IN_CLOSE);
