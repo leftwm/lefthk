@@ -53,7 +53,6 @@ impl Worker {
                 _ = self.watcher.wait_readable(), if !self.reload_requested => {
                     if self.watcher.has_events() {
                         self.reload_requested = true;
-                        println!("HI");
                     }
                     continue;
                 }
