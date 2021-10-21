@@ -22,7 +22,6 @@ fn main() {
                     std::process::exit(1);
                 }
             };
-            println!("{:?}", config);
             let mut worker = Worker::new(config.keybinds);
 
             rt.block_on(worker.event_loop());

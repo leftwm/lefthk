@@ -81,7 +81,6 @@ impl Worker {
     fn key_press(&mut self, event: &xlib::XKeyEvent) -> Error {
         let key = self.xwrap.keycode_to_keysym(event.keycode);
         let mask = xkeysym_lookup::clean_mask(event.state);
-        println!("{}, {}", key, mask);
         if let Some(keybind) = self.get_keybind((mask, key)) {
             match keybind.command {
                 config::Command::Execute => {

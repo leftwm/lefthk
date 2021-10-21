@@ -109,7 +109,6 @@ impl XWrap {
 
     /// Grabs a list of keybindings.
     pub fn grab_keys(&self, keybinds: &[Keybind]) {
-        println!("{:?}", keybinds);
         // Cleanup key grabs.
         unsafe {
             (self.xlib.XUngrabKey)(self.display, xlib::AnyKey, xlib::AnyModifier, self.root);
@@ -119,7 +118,6 @@ impl XWrap {
         for kb in keybinds {
             if let Some(keysym) = xkeysym_lookup::into_keysym(&kb.key) {
                 let modmask = xkeysym_lookup::into_modmask(&kb.modifier);
-                println!("{:?}, {:?}", keysym, modmask);
                 self.grab_key(self.root, keysym, modmask);
             }
         }
