@@ -7,13 +7,17 @@ pub type Error = std::result::Result<(), LeftError>;
 pub enum LeftError {
     #[error("IO error: {0}.")]
     IoError(#[from] std::io::Error),
-    #[error("TOML error: {0}.")]
-    TomlDeserializeError(#[from] toml::de::Error),
+    #[error("Kdl error: {0}.")]
+    KdlError(#[from] kdl::KdlError),
     #[error("XDG error: {0}.")]
     XdgBaseDirError(#[from] xdg::BaseDirectoriesError),
 
     #[error("No command found for keybind.")]
     CommandNotFound,
+    #[error("No key found for keybind.")]
+    KeyNotFound,
+    #[error("No modifier found for keybind.")]
+    ModifierNotFound,
     #[error("No config file found.")]
     NoConfigFound,
     #[error("No value set for execution.")]
