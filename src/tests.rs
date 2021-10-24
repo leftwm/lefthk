@@ -118,7 +118,7 @@ mod config {
         file.write_all(b"\n").await.unwrap();
         file.flush().await.unwrap();
 
-        assert_eq!(true, watcher.has_events());
+        assert!(true, "{}", watcher.has_events());
     }
 }
 
