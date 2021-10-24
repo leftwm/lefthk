@@ -56,13 +56,7 @@ mod config {
         };
         let chord: KdlNode = KdlNode {
             name: "Chord".to_owned(),
-            children: vec![
-                modifier.clone(),
-                key.clone(),
-                execute.clone(),
-                reload.clone(),
-                kill.clone(),
-            ],
+            children: vec![modifier, key, execute.clone(), reload.clone(), kill.clone()],
             ..KdlNode::default()
         };
         let nodes: Vec<KdlNode> = vec![chord, execute, reload, kill];
@@ -118,7 +112,7 @@ mod config {
         file.write_all(b"\n").await.unwrap();
         file.flush().await.unwrap();
 
-        assert!(true, "{}", watcher.has_events());
+        assert!(watcher.has_events());
     }
 }
 
