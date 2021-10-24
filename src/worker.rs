@@ -1,5 +1,5 @@
 use crate::config::{self, Keybind, Watcher};
-use crate::errors::{Error, LeftError};
+use crate::errors::{self, Error, LeftError};
 use crate::ipc::Pipe;
 use crate::xkeysym_lookup;
 use crate::xwrap::XWrap;
@@ -33,9 +33,9 @@ impl Worker {
 
     pub async fn event_loop(&mut self) {
         self.xwrap.grab_keys(&self.keybinds);
-        let mut pipe = Pipe::new()
-            .await
-            .expect("ERROR: Could not connect to pipe.");
+        println!("1");
+        let mut pipe = errors::exit_on_error!(Pipe::new().await);
+        println!("2");
         loop {
             if self.kill_requested || self.reload_requested {
                 break;
@@ -74,7 +74,7 @@ impl Worker {
             xlib::MappingNotify => self.mapping_notify(&mut xlib::XMappingEvent::from(xlib_event)),
             _ => return,
         };
-        let _ = error.map_err(|err| log::error!("{}", err));
+        let _ = errors::log_on_error!(error);
     }
 
     fn key_press(&mut self, event: &xlib::XKeyEvent) -> Error {

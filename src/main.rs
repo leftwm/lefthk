@@ -1,4 +1,4 @@
-use crate::worker::Worker;
+use crate::{config::Keybind, worker::Worker};
 
 pub mod config;
 pub mod errors;
@@ -10,19 +10,26 @@ pub mod xwrap;
 fn main() {
     log::info!("lefthk booted!");
     pretty_env_logger::init();
-    loop {
-        let completed = std::panic::catch_unwind(|| {
-            let rt = tokio::runtime::Runtime::new().expect("ERROR: couldn't init Tokio runtime");
-            let _rt_guard = rt.enter();
+    let completed = std::panic::catch_unwind(|| {
+        let rt = errors::return_on_error!(tokio::runtime::Runtime::new());
+        let _rt_guard = rt.enter();
+        let mut old_keybinds: Option<Vec<Keybind>> = None;
 
-            let config = match config::load() {
-                Ok(config) => config,
+        loop {
+            let keybinds = match config::load() {
+                Ok(keybinds) => keybinds,
                 Err(err) => {
-                    log::error!("{} Exiting program.", err);
-                    std::process::exit(1);
+                    let keybinds = match old_keybinds {
+                        Some(keybinds) => keybinds,
+                        None => {
+                            log::error!("Exiting program due to error: {}", err);
+                            std::process::exit(1);
+                        }
+                    };
+                    keybinds
                 }
             };
-            let mut worker = Worker::new(config.keybinds);
+            let mut worker = Worker::new(keybinds.clone());
 
             rt.block_on(worker.event_loop());
 
@@ -30,11 +37,12 @@ fn main() {
                 log::info!("Exiting.");
                 std::process::exit(0);
             }
-        });
-
-        match completed {
-            Ok(_) => log::info!("Completed"),
-            Err(err) => log::error!("Completed with error: {:?}", err),
+            old_keybinds = Some(keybinds);
         }
+    });
+
+    match completed {
+        Ok(_) => log::info!("Completed"),
+        Err(err) => log::error!("Completed with error: {:?}", err),
     }
 }

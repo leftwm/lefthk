@@ -9,7 +9,7 @@ use tokio::sync::{oneshot, Notify};
 use tokio::time::Duration;
 use xdg::BaseDirectories;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Command {
     Execute,
     Reload,
@@ -29,7 +29,7 @@ impl TryFrom<String> for Command {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Keybind {
     pub command: Command,
     pub value: Option<String>,
@@ -77,30 +77,18 @@ impl TryFrom<&KdlNode> for Keybind {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Config {
-    pub keybinds: Vec<Keybind>,
-}
-
-impl Config {
-    pub fn new(keybinds: Vec<Keybind>) -> Self {
-        Self { keybinds }
-    }
-}
-
-pub fn load() -> Result<Config> {
+pub fn load() -> Result<Vec<Keybind>> {
     let path = BaseDirectories::with_prefix("lefthk")?;
     fs::create_dir_all(&path.get_config_home())?;
     let file_name = path.place_config_file("config.kdl")?;
     if Path::new(&file_name).exists() {
         let contents = fs::read_to_string(file_name)?;
         let kdl = kdl::parse_document(contents)?;
-        let keybinds = kdl
+        return kdl
             .iter()
             .map(Keybind::try_from)
             .filter(Result::is_ok)
-            .collect::<Result<Vec<Keybind>>>()?;
-        return Ok(Config::new(keybinds));
+            .collect::<Result<Vec<Keybind>>>();
     }
     Err(LeftError::NoConfigFound)
 }
