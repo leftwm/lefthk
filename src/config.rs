@@ -3,6 +3,7 @@ use kdl::KdlNode;
 use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
 use serde::{Deserialize, Serialize};
 use std::os::unix::prelude::AsRawFd;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::{convert::TryFrom, fs, path::Path};
 use tokio::sync::{oneshot, Notify};
@@ -31,7 +32,7 @@ impl TryFrom<String> for Command {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Keybind {
     pub command: Command,
     pub value: Option<String>,
@@ -88,7 +89,6 @@ impl TryFrom<&KdlNode> for Keybind {
         } else {
             None
         };
-        println!("{:?}", children);
         Ok(Self {
             command,
             value,
@@ -121,21 +121,13 @@ pub struct Watcher {
     _task_guard: oneshot::Receiver<()>,
 }
 
-impl Default for Watcher {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Watcher {
-    pub fn new() -> Watcher {
+    pub fn new(config_file: PathBuf) -> Watcher {
         const INOTIFY: mio::Token = mio::Token(0);
         let fd = errors::exit_on_error!(Inotify::init(InitFlags::all()));
-        let path = errors::exit_on_error!(BaseDirectories::with_prefix("lefthk"));
-        let file_name = errors::exit_on_error!(path.place_config_file("config.kdl"));
         let mut flags = AddWatchFlags::empty();
         flags.insert(AddWatchFlags::IN_MODIFY | AddWatchFlags::IN_CLOSE);
-        let _wd = errors::exit_on_error!(fd.add_watch(&file_name, flags));
+        let _wd = errors::exit_on_error!(fd.add_watch(&config_file, flags));
 
         let (guard, _task_guard) = oneshot::channel::<()>();
         let notify = Arc::new(Notify::new());

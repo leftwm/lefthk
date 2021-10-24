@@ -1,5 +1,7 @@
 use crate::{config::Keybind, errors::LeftError, worker::Worker};
 
+mod tests;
+
 pub mod config;
 pub mod errors;
 pub mod ipc;

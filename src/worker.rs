@@ -5,11 +5,11 @@ use crate::xkeysym_lookup;
 use crate::xwrap::XWrap;
 use std::process::{Command, Stdio};
 use x11_dl::xlib;
+use xdg::BaseDirectories;
 
 pub struct Worker {
     pub keybinds: Vec<Keybind>,
     pub xwrap: XWrap,
-    pub watcher: Watcher,
     pub reload_requested: bool,
     pub kill_requested: bool,
     chord_keybinds: Option<Vec<Keybind>>,
@@ -27,7 +27,6 @@ impl Worker {
         Self {
             keybinds,
             xwrap: XWrap::new(),
-            watcher: Watcher::new(),
             reload_requested: false,
             kill_requested: false,
             chord_keybinds: None,
@@ -37,7 +36,11 @@ impl Worker {
 
     pub async fn event_loop(&mut self) {
         self.xwrap.grab_keys(&self.keybinds);
-        let mut pipe = errors::exit_on_error!(Pipe::new().await);
+        let path = errors::exit_on_error!(BaseDirectories::with_prefix("lefthk"));
+        let config_file = errors::exit_on_error!(path.place_config_file("config.kdl"));
+        let mut watcher = Watcher::new(config_file);
+        let pipe_file = errors::exit_on_error!(path.place_runtime_file("commands.pipe"));
+        let mut pipe = errors::exit_on_error!(Pipe::new(pipe_file).await);
         loop {
             if self.kill_requested || self.reload_requested {
                 break;
@@ -58,8 +61,8 @@ impl Worker {
                     }
                     continue;
                 }
-                _ = self.watcher.wait_readable(), if !self.reload_requested => {
-                    if self.watcher.has_events() {
+                _ = watcher.wait_readable(), if !self.reload_requested => {
+                    if watcher.has_events() {
                         self.reload_requested = true;
                     }
                     continue;

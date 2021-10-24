@@ -34,9 +34,7 @@ impl Pipe {
     ///
     /// Will error if unable to `mkfifo`, likely a filesystem issue
     /// such as inadequate permissions.
-    pub async fn new() -> Result<Self> {
-        let pipe_file =
-            xdg::BaseDirectories::with_prefix("lefthk")?.place_runtime_file("commands.pipe")?;
+    pub async fn new(pipe_file: PathBuf) -> Result<Self> {
         let _ = fs::remove_file(pipe_file.as_path()).await;
         nix::unistd::mkfifo(&pipe_file, nix::sys::stat::Mode::S_IRWXU)?;
 
