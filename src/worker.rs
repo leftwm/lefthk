@@ -80,6 +80,7 @@ impl Worker {
         let mask = xkeysym_lookup::clean_mask(event.state);
         if let Some(keybind) = self.get_keybind((mask, key)) {
             match keybind.command {
+                config::Command::Chord => (),
                 config::Command::Execute => {
                     if let Some(value) = &keybind.value {
                         return exec(value);
