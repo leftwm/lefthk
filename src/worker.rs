@@ -12,6 +12,8 @@ pub struct Worker {
     pub watcher: Watcher,
     pub reload_requested: bool,
     pub kill_requested: bool,
+    chord_keybinds: Option<Vec<Keybind>>,
+    chord_elapsed: bool,
 }
 
 impl Drop for Worker {
@@ -28,6 +30,8 @@ impl Worker {
             watcher: Watcher::new(),
             reload_requested: false,
             kill_requested: false,
+            chord_keybinds: None,
+            chord_elapsed: false,
         }
     }
 
@@ -37,6 +41,12 @@ impl Worker {
         loop {
             if self.kill_requested || self.reload_requested {
                 break;
+            }
+
+            if self.chord_elapsed {
+                self.xwrap.grab_keys(&self.keybinds);
+                self.chord_keybinds = None;
+                self.chord_elapsed = false;
             }
 
             tokio::select! {
@@ -80,8 +90,14 @@ impl Worker {
         let mask = xkeysym_lookup::clean_mask(event.state);
         if let Some(keybind) = self.get_keybind((mask, key)) {
             match keybind.command {
-                config::Command::Chord => (),
+                config::Command::Chord => {
+                    self.chord_keybinds = keybind.children;
+                    if let Some(keybinds) = &self.chord_keybinds {
+                        self.xwrap.grab_keys(keybinds);
+                    }
+                }
                 config::Command::Execute => {
+                    self.chord_elapsed = self.chord_keybinds.is_some();
                     if let Some(value) = &keybind.value {
                         return exec(value);
                     }
@@ -96,14 +112,22 @@ impl Worker {
         Ok(())
     }
 
-    fn get_keybind(&self, mask_key_pair: (u32, u32)) -> Option<&Keybind> {
-        self.keybinds.iter().find(|keybind| {
-            if let Some(key) = xkeysym_lookup::into_keysym(&keybind.key) {
-                let mask = xkeysym_lookup::into_modmask(&keybind.modifier);
-                return mask_key_pair == (mask, key);
-            }
-            false
-        })
+    fn get_keybind(&self, mask_key_pair: (u32, u32)) -> Option<Keybind> {
+        let keybinds = if let Some(keybinds) = &self.chord_keybinds {
+            keybinds
+        } else {
+            &self.keybinds
+        };
+        keybinds
+            .iter()
+            .find(|keybind| {
+                if let Some(key) = xkeysym_lookup::into_keysym(&keybind.key) {
+                    let mask = xkeysym_lookup::into_modmask(&keybind.modifier);
+                    return mask_key_pair == (mask, key);
+                }
+                false
+            })
+            .cloned()
     }
 
     fn mapping_notify(&self, event: &mut xlib::XMappingEvent) -> Error {

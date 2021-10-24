@@ -72,13 +72,13 @@ impl TryFrom<&KdlNode> for Keybind {
             .iter()
             .map(|val| strip_quotes(val.to_string()))
             .collect();
-        let children = if command == Command::Chord {
-            let child_nodes: Vec<KdlNode> = node
-                .children
-                .iter()
-                .filter(|child| Command::try_from(child.name.to_owned()).is_ok())
-                .cloned()
-                .collect();
+        let child_nodes: Vec<KdlNode> = node
+            .children
+            .iter()
+            .filter(|child| Command::try_from(child.name.to_owned()).is_ok())
+            .cloned()
+            .collect();
+        let children = if !child_nodes.is_empty() && command == Command::Chord {
             child_nodes
                 .iter()
                 .map(Keybind::try_from)
