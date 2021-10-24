@@ -9,8 +9,9 @@ use tokio::sync::{oneshot, Notify};
 use tokio::time::Duration;
 use xdg::BaseDirectories;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Command {
+    Chord,
     Execute,
     Reload,
     Kill,
@@ -21,6 +22,7 @@ impl TryFrom<String> for Command {
 
     fn try_from(value: String) -> Result<Self> {
         match value {
+            s if s == "Chord" => Ok(Self::Chord),
             s if s == "Execute" => Ok(Self::Execute),
             s if s == "Reload" => Ok(Self::Reload),
             s if s == "Kill" => Ok(Self::Kill),
@@ -35,8 +37,10 @@ pub struct Keybind {
     pub value: Option<String>,
     pub modifier: Vec<String>,
     pub key: String,
+    pub children: Option<Vec<Keybind>>,
 }
 
+// Needed as the kdl to_string functions add double quotes inside the string.
 fn strip_quotes(mut string: String) -> String {
     string.retain(|c| c != '\"');
     string
@@ -46,7 +50,7 @@ impl TryFrom<&KdlNode> for Keybind {
     type Error = LeftError;
 
     fn try_from(node: &KdlNode) -> Result<Self> {
-        let command: Command = Command::try_from(node.name.to_string())?;
+        let command: Command = Command::try_from(node.name.to_owned())?;
         let value: Option<String> = node.values.get(0).map(|val| strip_quotes(val.to_string()));
         let modifier_node: &KdlNode = node
             .children
@@ -68,11 +72,29 @@ impl TryFrom<&KdlNode> for Keybind {
             .iter()
             .map(|val| strip_quotes(val.to_string()))
             .collect();
+        let child_nodes: Vec<KdlNode> = node
+            .children
+            .iter()
+            .filter(|child| Command::try_from(child.name.to_owned()).is_ok())
+            .cloned()
+            .collect();
+        let children = if !child_nodes.is_empty() && command == Command::Chord {
+            child_nodes
+                .iter()
+                .map(Keybind::try_from)
+                .filter(Result::is_ok)
+                .map(Result::ok)
+                .collect()
+        } else {
+            None
+        };
+        println!("{:?}", children);
         Ok(Self {
             command,
             value,
             modifier,
             key,
+            children,
         })
     }
 }
