@@ -4,7 +4,7 @@ use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
 use serde::{Deserialize, Serialize};
 use std::os::unix::prelude::AsRawFd;
 use std::sync::Arc;
-use std::{fs, path::Path};
+use std::{convert::TryFrom, fs, path::Path};
 use tokio::sync::{oneshot, Notify};
 use tokio::time::Duration;
 use xdg::BaseDirectories;
