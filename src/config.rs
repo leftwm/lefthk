@@ -1,4 +1,4 @@
-use crate::errors::{LeftError, Result};
+use crate::errors::{self, LeftError, Result};
 use kdl::KdlNode;
 use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
 use serde::{Deserialize, Serialize};
@@ -108,30 +108,23 @@ impl Default for Watcher {
 impl Watcher {
     pub fn new() -> Watcher {
         const INOTIFY: mio::Token = mio::Token(0);
-        let fd = Inotify::init(InitFlags::all()).expect("ERROR: Could not init iNotify.");
-        let path =
-            BaseDirectories::with_prefix("lefthk").expect("ERROR: Could not find base directory.");
-        let file_name = path
-            .find_config_file("config.kdl")
-            .expect("ERROR: Could not find config file.");
+        let fd = errors::exit_on_error!(Inotify::init(InitFlags::all()));
+        let path = errors::exit_on_error!(BaseDirectories::with_prefix("lefthk"));
+        let file_name = errors::exit_on_error!(path.place_config_file("config.kdl"));
         let mut flags = AddWatchFlags::empty();
         flags.insert(AddWatchFlags::IN_MODIFY | AddWatchFlags::IN_CLOSE);
-        let _wd = fd
-            .add_watch(&file_name, flags)
-            .expect("ERROR: Failed to watch config file.");
+        let _wd = errors::exit_on_error!(fd.add_watch(&file_name, flags));
 
         let (guard, _task_guard) = oneshot::channel::<()>();
         let notify = Arc::new(Notify::new());
         let task_notify = notify.clone();
-        let mut poll = mio::Poll::new().expect("Unable to boot Mio");
+        let mut poll = errors::exit_on_error!(mio::Poll::new());
         let mut events = mio::Events::with_capacity(1);
-        poll.registry()
-            .register(
-                &mut mio::unix::SourceFd(&fd.as_raw_fd()),
-                INOTIFY,
-                mio::Interest::READABLE,
-            )
-            .expect("Unable to boot Mio");
+        errors::exit_on_error!(poll.registry().register(
+            &mut mio::unix::SourceFd(&fd.as_raw_fd()),
+            INOTIFY,
+            mio::Interest::READABLE,
+        ));
         let timeout = Duration::from_millis(50);
         tokio::task::spawn_blocking(move || loop {
             if guard.is_closed() {

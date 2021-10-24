@@ -33,9 +33,7 @@ impl Worker {
 
     pub async fn event_loop(&mut self) {
         self.xwrap.grab_keys(&self.keybinds);
-        println!("1");
         let mut pipe = errors::exit_on_error!(Pipe::new().await);
-        println!("2");
         loop {
             if self.kill_requested || self.reload_requested {
                 break;

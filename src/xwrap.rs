@@ -1,5 +1,5 @@
 use crate::config::Keybind;
-use crate::errors::{Error, LeftError};
+use crate::errors::{self, Error, LeftError};
 use crate::xkeysym_lookup;
 use std::os::raw::{c_int, c_ulong};
 use std::ptr;
@@ -29,7 +29,7 @@ impl XWrap {
     #[must_use]
     pub fn new() -> Self {
         const SERVER: mio::Token = mio::Token(0);
-        let xlib = xlib::Xlib::open().expect("Couldn't not connect to Xorg Server");
+        let xlib = errors::exit_on_error!(xlib::Xlib::open());
         let display = unsafe { (xlib.XOpenDisplay)(ptr::null()) };
         assert!(!display.is_null(), "Null pointer in display");
 
@@ -37,15 +37,13 @@ impl XWrap {
         let (guard, _task_guard) = oneshot::channel::<()>();
         let notify = Arc::new(Notify::new());
         let task_notify = notify.clone();
-        let mut poll = mio::Poll::new().expect("Unable to boot Mio");
+        let mut poll = errors::exit_on_error!(mio::Poll::new());
         let mut events = mio::Events::with_capacity(1);
-        poll.registry()
-            .register(
-                &mut mio::unix::SourceFd(&fd),
-                SERVER,
-                mio::Interest::READABLE,
-            )
-            .expect("Unable to boot Mio");
+        errors::exit_on_error!(poll.registry().register(
+            &mut mio::unix::SourceFd(&fd),
+            SERVER,
+            mio::Interest::READABLE,
+        ));
         let timeout = Duration::from_millis(50);
         tokio::task::spawn_blocking(move || loop {
             if guard.is_closed() {

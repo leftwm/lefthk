@@ -4,7 +4,7 @@ macro_rules! log_on_error {
     ($a: expr) => {
         match $a {
             Ok(value) => value,
-            Err(err) => log::error!("{}", err),
+            Err(err) => log::error!("{}", LeftError::from(err)),
         }
     };
 }
@@ -14,7 +14,7 @@ macro_rules! return_on_error {
         match $a {
             Ok(value) => value,
             Err(err) => {
-                log::error!("Returning due to error: {}", err);
+                log::error!("Returning due to error: {}", LeftError::from(err));
                 return;
             }
         }
@@ -26,7 +26,7 @@ macro_rules! exit_on_error {
         match $a {
             Ok(value) => value,
             Err(err) => {
-                log::error!("Exiting due to error: {}", err);
+                log::error!("Exiting due to error: {}", LeftError::from(err));
                 std::process::exit(1);
             }
         }
@@ -48,6 +48,8 @@ pub enum LeftError {
     KdlError(#[from] kdl::KdlError),
     #[error("Nix errno: {0}.")]
     NixErrno(#[from] nix::errno::Errno),
+    #[error("Xlib error: {0}.")]
+    XlibError(#[from] x11_dl::error::OpenError),
     #[error("XDG error: {0}.")]
     XdgBaseDirError(#[from] xdg::BaseDirectoriesError),
 

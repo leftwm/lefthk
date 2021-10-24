@@ -1,4 +1,4 @@
-use crate::{config::Keybind, worker::Worker};
+use crate::{config::Keybind, errors::LeftError, worker::Worker};
 
 pub mod config;
 pub mod errors;
