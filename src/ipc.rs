@@ -34,14 +34,9 @@ impl Pipe {
     ///
     /// Will error if unable to `mkfifo`, likely a filesystem issue
     /// such as inadequate permissions.
-    pub async fn new() -> Result<Self> {
-        let pipe_file = xdg::BaseDirectories::with_prefix("lefthk")?
-            .place_runtime_file("commands.pipe")
-            .expect("ERROR: Could not open pipe.");
-        fs::remove_file(pipe_file.as_path()).await.ok();
-        if let Err(e) = nix::unistd::mkfifo(&pipe_file, nix::sys::stat::Mode::S_IRWXU) {
-            log::error!("Failed to create new fifo {:?}", e);
-        }
+    pub async fn new(pipe_file: PathBuf) -> Result<Self> {
+        let _ = fs::remove_file(pipe_file.as_path()).await;
+        nix::unistd::mkfifo(&pipe_file, nix::sys::stat::Mode::S_IRWXU)?;
 
         let path = pipe_file.clone();
         let (tx, rx) = mpsc::unbounded_channel();

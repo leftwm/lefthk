@@ -1,16 +1,17 @@
-use crate::errors::{LeftError, Result};
+use crate::errors::{Error, LeftError, Result};
 use kdl::KdlNode;
 use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
 use serde::{Deserialize, Serialize};
 use std::os::unix::prelude::AsRawFd;
 use std::sync::Arc;
-use std::{fs, path::Path};
+use std::{convert::TryFrom, fs, path::Path};
 use tokio::sync::{oneshot, Notify};
 use tokio::time::Duration;
 use xdg::BaseDirectories;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Command {
+    Chord,
     Execute,
     Reload,
     Kill,
@@ -21,6 +22,7 @@ impl TryFrom<String> for Command {
 
     fn try_from(value: String) -> Result<Self> {
         match value {
+            s if s == "Chord" => Ok(Self::Chord),
             s if s == "Execute" => Ok(Self::Execute),
             s if s == "Reload" => Ok(Self::Reload),
             s if s == "Kill" => Ok(Self::Kill),
@@ -29,14 +31,16 @@ impl TryFrom<String> for Command {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Keybind {
     pub command: Command,
     pub value: Option<String>,
     pub modifier: Vec<String>,
     pub key: String,
+    pub children: Option<Vec<Keybind>>,
 }
 
+// Needed as the kdl to_string functions add double quotes inside the string.
 fn strip_quotes(mut string: String) -> String {
     string.retain(|c| c != '\"');
     string
@@ -46,7 +50,7 @@ impl TryFrom<&KdlNode> for Keybind {
     type Error = LeftError;
 
     fn try_from(node: &KdlNode) -> Result<Self> {
-        let command: Command = Command::try_from(node.name.to_string())?;
+        let command: Command = Command::try_from(node.name.to_owned())?;
         let value: Option<String> = node.values.get(0).map(|val| strip_quotes(val.to_string()));
         let modifier_node: &KdlNode = node
             .children
@@ -68,39 +72,44 @@ impl TryFrom<&KdlNode> for Keybind {
             .iter()
             .map(|val| strip_quotes(val.to_string()))
             .collect();
+        let child_nodes: Vec<KdlNode> = node
+            .children
+            .iter()
+            .filter(|child| Command::try_from(child.name.to_owned()).is_ok())
+            .cloned()
+            .collect();
+        let children = if !child_nodes.is_empty() && command == Command::Chord {
+            child_nodes
+                .iter()
+                .map(Keybind::try_from)
+                .filter(Result::is_ok)
+                .map(Result::ok)
+                .collect()
+        } else {
+            None
+        };
         Ok(Self {
             command,
             value,
             modifier,
             key,
+            children,
         })
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Config {
-    pub keybinds: Vec<Keybind>,
-}
-
-impl Config {
-    pub fn new(keybinds: Vec<Keybind>) -> Self {
-        Self { keybinds }
-    }
-}
-
-pub fn load() -> Result<Config> {
+pub fn load() -> Result<Vec<Keybind>> {
     let path = BaseDirectories::with_prefix("lefthk")?;
     fs::create_dir_all(&path.get_config_home())?;
     let file_name = path.place_config_file("config.kdl")?;
     if Path::new(&file_name).exists() {
         let contents = fs::read_to_string(file_name)?;
         let kdl = kdl::parse_document(contents)?;
-        let keybinds = kdl
+        return kdl
             .iter()
             .map(Keybind::try_from)
             .filter(Result::is_ok)
-            .collect::<Result<Vec<Keybind>>>()?;
-        return Ok(Config::new(keybinds));
+            .collect::<Result<Vec<Keybind>>>();
     }
     Err(LeftError::NoConfigFound)
 }
@@ -111,39 +120,24 @@ pub struct Watcher {
     _task_guard: oneshot::Receiver<()>,
 }
 
-impl Default for Watcher {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Watcher {
-    pub fn new() -> Watcher {
+    pub fn new(config_file: &Path) -> Result<Watcher> {
         const INOTIFY: mio::Token = mio::Token(0);
-        let fd = Inotify::init(InitFlags::all()).expect("ERROR: Could not init iNotify.");
-        let path =
-            BaseDirectories::with_prefix("lefthk").expect("ERROR: Could not find base directory.");
-        let file_name = path
-            .find_config_file("config.kdl")
-            .expect("ERROR: Could not find config file.");
+        let fd = Inotify::init(InitFlags::all())?;
         let mut flags = AddWatchFlags::empty();
-        flags.insert(AddWatchFlags::IN_MODIFY | AddWatchFlags::IN_CLOSE);
-        let _wd = fd
-            .add_watch(&file_name, flags)
-            .expect("ERROR: Failed to watch config file.");
+        flags.insert(AddWatchFlags::IN_MODIFY);
+        let _wd = fd.add_watch(config_file, flags)?;
 
         let (guard, _task_guard) = oneshot::channel::<()>();
         let notify = Arc::new(Notify::new());
         let task_notify = notify.clone();
-        let mut poll = mio::Poll::new().expect("Unable to boot Mio");
+        let mut poll = mio::Poll::new()?;
         let mut events = mio::Events::with_capacity(1);
-        poll.registry()
-            .register(
-                &mut mio::unix::SourceFd(&fd.as_raw_fd()),
-                INOTIFY,
-                mio::Interest::READABLE,
-            )
-            .expect("Unable to boot Mio");
+        poll.registry().register(
+            &mut mio::unix::SourceFd(&fd.as_raw_fd()),
+            INOTIFY,
+            mio::Interest::READABLE,
+        )?;
         let timeout = Duration::from_millis(50);
         tokio::task::spawn_blocking(move || loop {
             if guard.is_closed() {
@@ -160,11 +154,18 @@ impl Watcher {
                 .filter(|event| INOTIFY == event.token())
                 .for_each(|_| notify.notify_one());
         });
-        Self {
+        Ok(Self {
             fd,
             task_notify,
             _task_guard,
-        }
+        })
+    }
+
+    pub fn refresh_watch(&self, config_file: &Path) -> Error {
+        let mut flags = AddWatchFlags::empty();
+        flags.insert(AddWatchFlags::IN_MODIFY);
+        let _wd = self.fd.add_watch(config_file, flags)?;
+        Ok(())
     }
 
     pub fn has_events(&self) -> bool {

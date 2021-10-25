@@ -1,6 +1,8 @@
 use crate::worker::Worker;
 use clap::{App, Arg};
 
+mod tests;
+
 pub mod config;
 pub mod errors;
 pub mod ipc;
@@ -26,31 +28,16 @@ fn main() {
         .get_matches();
     log::info!("lefthk booted!");
     pretty_env_logger::init();
-    loop {
-        let completed = std::panic::catch_unwind(|| {
-            let rt = tokio::runtime::Runtime::new().expect("ERROR: couldn't init Tokio runtime");
-            let _rt_guard = rt.enter();
+    let completed = std::panic::catch_unwind(|| {
+        let rt = errors::return_on_error!(tokio::runtime::Runtime::new());
+        let _rt_guard = rt.enter();
 
-            let config = match config::load() {
-                Ok(config) => config,
-                Err(err) => {
-                    log::error!("{} Exiting program.", err);
-                    std::process::exit(1);
-                }
-            };
-            let mut worker = Worker::new(config.keybinds);
+        let keybinds = errors::return_on_error!(config::load());
+        rt.block_on(Worker::new(keybinds).event_loop());
+    });
 
-            rt.block_on(worker.event_loop());
-
-            if worker.kill_requested {
-                log::info!("Exiting.");
-                std::process::exit(0);
-            }
-        });
-
-        match completed {
-            Ok(_) => log::info!("Completed"),
-            Err(err) => log::error!("Completed with error: {:?}", err),
-        }
+    match completed {
+        Ok(_) => log::info!("Completed"),
+        Err(err) => log::error!("Completed with error: {:?}", err),
     }
 }

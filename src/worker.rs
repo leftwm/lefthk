@@ -1,17 +1,19 @@
 use crate::config::{self, Keybind, Watcher};
-use crate::errors::{Error, LeftError};
+use crate::errors::{self, Error, LeftError};
 use crate::ipc::Pipe;
 use crate::xkeysym_lookup;
 use crate::xwrap::XWrap;
 use std::process::{Command, Stdio};
 use x11_dl::xlib;
+use xdg::BaseDirectories;
 
 pub struct Worker {
     pub keybinds: Vec<Keybind>,
     pub xwrap: XWrap,
-    pub watcher: Watcher,
     pub reload_requested: bool,
     pub kill_requested: bool,
+    chord_keybinds: Option<Vec<Keybind>>,
+    chord_elapsed: bool,
 }
 
 impl Drop for Worker {
@@ -25,24 +27,46 @@ impl Worker {
         Self {
             keybinds,
             xwrap: XWrap::new(),
-            watcher: Watcher::new(),
             reload_requested: false,
             kill_requested: false,
+            chord_keybinds: None,
+            chord_elapsed: false,
         }
     }
 
     pub async fn event_loop(&mut self) {
         self.xwrap.grab_keys(&self.keybinds);
-        let mut pipe = Pipe::new()
-            .await
-            .expect("ERROR: Could not connect to pipe.");
+        let path = errors::exit_on_error!(BaseDirectories::with_prefix("lefthk"));
+        let config_file = errors::exit_on_error!(path.place_config_file("config.kdl"));
+        let mut watcher = errors::exit_on_error!(Watcher::new(&config_file));
+        let pipe_file = errors::exit_on_error!(path.place_runtime_file("commands.pipe"));
+        let mut pipe = errors::exit_on_error!(Pipe::new(pipe_file).await);
         loop {
-            if self.kill_requested || self.reload_requested {
+            if self.kill_requested {
                 break;
             }
 
+            if self.reload_requested {
+                match config::load() {
+                    Ok(keybinds) => {
+                        if self.keybinds != keybinds {
+                            self.keybinds = keybinds;
+                            self.xwrap.grab_keys(&self.keybinds);
+                        }
+                    }
+                    Err(err) => log::error!("Unable to load new config due to error: {}", err),
+                }
+                self.reload_requested = false;
+            }
+
+            if self.chord_elapsed {
+                self.xwrap.grab_keys(&self.keybinds);
+                self.chord_keybinds = None;
+                self.chord_elapsed = false;
+            }
+
             tokio::select! {
-                _ = self.xwrap.wait_readable(), if !self.reload_requested => {
+                _ = self.xwrap.wait_readable() => {
                     let event_in_queue = self.xwrap.queue_len();
                     for _ in 0..event_in_queue {
                         let xlib_event = self.xwrap.get_next_event();
@@ -50,13 +74,14 @@ impl Worker {
                     }
                     continue;
                 }
-                _ = self.watcher.wait_readable(), if !self.reload_requested => {
-                    if self.watcher.has_events() {
+                _ = watcher.wait_readable() => {
+                    if watcher.has_events() {
+                        errors::exit_on_error!(watcher.refresh_watch(&config_file));
                         self.reload_requested = true;
                     }
                     continue;
                 }
-                Some(command) = pipe.read_command(), if !self.reload_requested => {
+                Some(command) = pipe.read_command() => {
                     match command {
                         config::Command::Reload => self.reload_requested = true,
                         config::Command::Kill => self.kill_requested = true,
@@ -74,7 +99,7 @@ impl Worker {
             xlib::MappingNotify => self.mapping_notify(&mut xlib::XMappingEvent::from(xlib_event)),
             _ => return,
         };
-        let _ = error.map_err(|err| log::error!("{}", err));
+        let _ = errors::log_on_error!(error);
     }
 
     fn key_press(&mut self, event: &xlib::XKeyEvent) -> Error {
@@ -82,7 +107,14 @@ impl Worker {
         let mask = xkeysym_lookup::clean_mask(event.state);
         if let Some(keybind) = self.get_keybind((mask, key)) {
             match keybind.command {
+                config::Command::Chord => {
+                    self.chord_keybinds = keybind.children;
+                    if let Some(keybinds) = &self.chord_keybinds {
+                        self.xwrap.grab_keys(keybinds);
+                    }
+                }
                 config::Command::Execute => {
+                    self.chord_elapsed = self.chord_keybinds.is_some();
                     if let Some(value) = &keybind.value {
                         return exec(value);
                     }
@@ -97,14 +129,22 @@ impl Worker {
         Ok(())
     }
 
-    fn get_keybind(&self, mask_key_pair: (u32, u32)) -> Option<&Keybind> {
-        self.keybinds.iter().find(|keybind| {
-            if let Some(key) = xkeysym_lookup::into_keysym(&keybind.key) {
-                let mask = xkeysym_lookup::into_modmask(&keybind.modifier);
-                return mask_key_pair == (mask, key);
-            }
-            false
-        })
+    fn get_keybind(&self, mask_key_pair: (u32, u32)) -> Option<Keybind> {
+        let keybinds = if let Some(keybinds) = &self.chord_keybinds {
+            keybinds
+        } else {
+            &self.keybinds
+        };
+        keybinds
+            .iter()
+            .find(|keybind| {
+                if let Some(key) = xkeysym_lookup::into_keysym(&keybind.key) {
+                    let mask = xkeysym_lookup::into_modmask(&keybind.modifier);
+                    return mask_key_pair == (mask, key);
+                }
+                false
+            })
+            .cloned()
     }
 
     fn mapping_notify(&self, event: &mut xlib::XMappingEvent) -> Error {
