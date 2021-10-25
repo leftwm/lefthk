@@ -102,7 +102,7 @@ mod config {
     #[tokio::test]
     async fn check_watcher() {
         let config_file = temp_path().await.unwrap();
-        let watcher = Watcher::new(config_file.clone());
+        let watcher = Watcher::new(&config_file).unwrap();
 
         let mut file = fs::OpenOptions::new()
             .write(true)

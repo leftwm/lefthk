@@ -1,9 +1,8 @@
-use crate::errors::{self, LeftError, Result};
+use crate::errors::{Error, LeftError, Result};
 use kdl::KdlNode;
 use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
 use serde::{Deserialize, Serialize};
 use std::os::unix::prelude::AsRawFd;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::{convert::TryFrom, fs, path::Path};
 use tokio::sync::{oneshot, Notify};
@@ -122,23 +121,23 @@ pub struct Watcher {
 }
 
 impl Watcher {
-    pub fn new(config_file: PathBuf) -> Watcher {
+    pub fn new(config_file: &Path) -> Result<Watcher> {
         const INOTIFY: mio::Token = mio::Token(0);
-        let fd = errors::exit_on_error!(Inotify::init(InitFlags::all()));
+        let fd = Inotify::init(InitFlags::all())?;
         let mut flags = AddWatchFlags::empty();
-        flags.insert(AddWatchFlags::IN_MODIFY | AddWatchFlags::IN_CLOSE);
-        let _wd = errors::exit_on_error!(fd.add_watch(&config_file, flags));
+        flags.insert(AddWatchFlags::IN_MODIFY);
+        let _wd = fd.add_watch(config_file, flags)?;
 
         let (guard, _task_guard) = oneshot::channel::<()>();
         let notify = Arc::new(Notify::new());
         let task_notify = notify.clone();
-        let mut poll = errors::exit_on_error!(mio::Poll::new());
+        let mut poll = mio::Poll::new()?;
         let mut events = mio::Events::with_capacity(1);
-        errors::exit_on_error!(poll.registry().register(
+        poll.registry().register(
             &mut mio::unix::SourceFd(&fd.as_raw_fd()),
             INOTIFY,
             mio::Interest::READABLE,
-        ));
+        )?;
         let timeout = Duration::from_millis(50);
         tokio::task::spawn_blocking(move || loop {
             if guard.is_closed() {
@@ -155,11 +154,18 @@ impl Watcher {
                 .filter(|event| INOTIFY == event.token())
                 .for_each(|_| notify.notify_one());
         });
-        Self {
+        Ok(Self {
             fd,
             task_notify,
             _task_guard,
-        }
+        })
+    }
+
+    pub fn refresh_watch(&self, config_file: &Path) -> Error {
+        let mut flags = AddWatchFlags::empty();
+        flags.insert(AddWatchFlags::IN_MODIFY);
+        let _wd = self.fd.add_watch(config_file, flags)?;
+        Ok(())
     }
 
     pub fn has_events(&self) -> bool {
