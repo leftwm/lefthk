@@ -38,12 +38,25 @@ impl Worker {
         self.xwrap.grab_keys(&self.keybinds);
         let path = errors::exit_on_error!(BaseDirectories::with_prefix("lefthk"));
         let config_file = errors::exit_on_error!(path.place_config_file("config.kdl"));
-        let mut watcher = Watcher::new(config_file);
+        let mut watcher = errors::exit_on_error!(Watcher::new(&config_file));
         let pipe_file = errors::exit_on_error!(path.place_runtime_file("commands.pipe"));
         let mut pipe = errors::exit_on_error!(Pipe::new(pipe_file).await);
         loop {
-            if self.kill_requested || self.reload_requested {
+            if self.kill_requested {
                 break;
+            }
+
+            if self.reload_requested {
+                match config::load() {
+                    Ok(keybinds) => {
+                        if self.keybinds != keybinds {
+                            self.keybinds = keybinds;
+                            self.xwrap.grab_keys(&self.keybinds);
+                        }
+                    }
+                    Err(err) => log::error!("Unable to load new config due to error: {}", err),
+                }
+                self.reload_requested = false;
             }
 
             if self.chord_elapsed {
@@ -53,7 +66,7 @@ impl Worker {
             }
 
             tokio::select! {
-                _ = self.xwrap.wait_readable(), if !self.reload_requested => {
+                _ = self.xwrap.wait_readable() => {
                     let event_in_queue = self.xwrap.queue_len();
                     for _ in 0..event_in_queue {
                         let xlib_event = self.xwrap.get_next_event();
@@ -61,13 +74,14 @@ impl Worker {
                     }
                     continue;
                 }
-                _ = watcher.wait_readable(), if !self.reload_requested => {
+                _ = watcher.wait_readable() => {
                     if watcher.has_events() {
+                        errors::exit_on_error!(watcher.refresh_watch(&config_file));
                         self.reload_requested = true;
                     }
                     continue;
                 }
-                Some(command) = pipe.read_command(), if !self.reload_requested => {
+                Some(command) = pipe.read_command() => {
                     match command {
                         config::Command::Reload => self.reload_requested = true,
                         config::Command::Kill => self.kill_requested = true,
