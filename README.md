@@ -1,7 +1,7 @@
 # LeftHK
 LeftHK - A hotkey daemon written in Rust
 
-*THIS IS A TEMPORARY REPOSITORY AND BETA SOFTWARE*
+*THIS IS BETA SOFTWARE*
 
 The configuration file should be created in ~/.config/lefthk/ and called config.kdl. If the configuration file is not created the program will exit.
 Example config:
