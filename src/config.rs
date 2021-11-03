@@ -13,6 +13,7 @@ use xdg::BaseDirectories;
 pub enum Command {
     Chord,
     Execute,
+    ExitChord,
     Reload,
     Kill,
 }
@@ -24,6 +25,7 @@ impl TryFrom<String> for Command {
         match value {
             s if s == "Chord" => Ok(Self::Chord),
             s if s == "Execute" => Ok(Self::Execute),
+            s if s == "ExitChord" => Ok(Self::ExitChord),
             s if s == "Reload" => Ok(Self::Reload),
             s if s == "Kill" => Ok(Self::Kill),
             _ => Err(LeftError::CommandNotFound),
@@ -105,13 +107,47 @@ pub fn load() -> Result<Vec<Keybind>> {
     if Path::new(&file_name).exists() {
         let contents = fs::read_to_string(file_name)?;
         let kdl = kdl::parse_document(contents)?;
-        return kdl
+        let mut keybinds = kdl
             .iter()
             .map(Keybind::try_from)
             .filter(Result::is_ok)
-            .collect::<Result<Vec<Keybind>>>();
+            .collect::<Result<Vec<Keybind>>>()?;
+        if let Some(global_exit_chord) = keybinds
+            .iter()
+            .find(|kb| kb.command == Command::ExitChord)
+            .cloned()
+        {
+            let chords = keybinds
+                .iter_mut()
+                .filter(|kb| kb.command == Command::Chord)
+                .collect();
+            propagate_exit_chord(chords, global_exit_chord);
+        }
+
+        return Ok(keybinds);
     }
     Err(LeftError::NoConfigFound)
+}
+
+fn propagate_exit_chord(chords: Vec<&mut Keybind>, exit_chord: Keybind) {
+    for chord in chords {
+        if let Some(children) = &mut chord.children {
+            if !children.iter().any(|kb| kb.command == Command::ExitChord) {
+                children.push(exit_chord.clone());
+            }
+            if let Some(parent_exit_chord) = children
+                .iter()
+                .find(|kb| kb.command == Command::ExitChord)
+                .cloned()
+            {
+                let sub_chords = children
+                    .iter_mut()
+                    .filter(|kb| kb.command == Command::Chord)
+                    .collect();
+                propagate_exit_chord(sub_chords, parent_exit_chord);
+            }
+        }
+    }
 }
 
 pub struct Watcher {

@@ -120,6 +120,11 @@ impl Worker {
                     }
                     return Err(LeftError::ValueNotFound);
                 }
+                config::Command::ExitChord => {
+                    if self.chord_keybinds.is_some() {
+                        self.chord_elapsed = true;
+                    }
+                }
                 config::Command::Reload => self.reload_requested = true,
                 config::Command::Kill => self.kill_requested = true,
             }
