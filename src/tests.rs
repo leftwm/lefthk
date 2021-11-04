@@ -54,12 +54,18 @@ mod config {
             children: vec![modifier.clone(), key.clone()],
             ..KdlNode::default()
         };
+        let exit_chord: KdlNode = KdlNode {
+            name: "ExitChord".to_owned(),
+            children: vec![modifier.clone(), key.clone()],
+            ..KdlNode::default()
+        };
         let chord: KdlNode = KdlNode {
             name: "Chord".to_owned(),
             children: vec![modifier, key, execute.clone(), reload.clone(), kill.clone()],
             ..KdlNode::default()
         };
-        let nodes: Vec<KdlNode> = vec![chord, execute, reload, kill];
+
+        let nodes: Vec<KdlNode> = vec![chord, execute, exit_chord, reload, kill];
         let parsed_keybands: Vec<Keybind> = nodes
             .iter()
             .map(Keybind::try_from)
@@ -88,6 +94,13 @@ mod config {
             key: "x".to_owned(),
             children: None,
         };
+        let exit_chord_kb: Keybind = Keybind {
+            command: Command::ExitChord,
+            value: None,
+            modifier: vec!["Mod4".to_owned()],
+            key: "x".to_owned(),
+            children: None,
+        };
         let chord_kb: Keybind = Keybind {
             command: Command::Chord,
             value: None,
@@ -95,7 +108,7 @@ mod config {
             key: "x".to_owned(),
             children: Some(vec![execute_kb.clone(), reload_kb.clone(), kill_kb.clone()]),
         };
-        let keybinds: Vec<Keybind> = vec![chord_kb, execute_kb, reload_kb, kill_kb];
+        let keybinds: Vec<Keybind> = vec![chord_kb, execute_kb, exit_chord_kb, reload_kb, kill_kb];
         assert_eq!(parsed_keybands, keybinds);
     }
 

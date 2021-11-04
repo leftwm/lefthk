@@ -57,6 +57,7 @@ impl Worker {
                     Err(err) => log::error!("Unable to load new config due to error: {}", err),
                 }
                 self.reload_requested = false;
+                continue;
             }
 
             if self.chord_elapsed {
@@ -119,6 +120,11 @@ impl Worker {
                         return exec(value);
                     }
                     return Err(LeftError::ValueNotFound);
+                }
+                config::Command::ExitChord => {
+                    if self.chord_keybinds.is_some() {
+                        self.chord_elapsed = true;
+                    }
                 }
                 config::Command::Reload => self.reload_requested = true,
                 config::Command::Kill => self.kill_requested = true,
