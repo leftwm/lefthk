@@ -190,6 +190,8 @@ impl XWrap {
 
     /// Wait until readable.
     pub async fn wait_readable(&mut self) {
-        self.task_notify.notified().await;
+        let _ = Box::pin(async move {
+            self.task_notify.notified().await;
+        });
     }
 }
