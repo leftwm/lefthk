@@ -67,7 +67,7 @@ impl Worker {
             }
 
             tokio::select! {
-                _ = self.xwrap.wait_readable(), if !self.reload_requested => {
+                _ = self.xwrap.wait_readable() => {
                     let event_in_queue = self.xwrap.queue_len();
                     for _ in 0..event_in_queue {
                         let xlib_event = self.xwrap.get_next_event();
