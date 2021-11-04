@@ -112,40 +112,38 @@ pub fn load() -> Result<Vec<Keybind>> {
             .map(Keybind::try_from)
             .filter(Result::is_ok)
             .collect::<Result<Vec<Keybind>>>()?;
-        if let Some(global_exit_chord) = keybinds
+        let global_exit_chord = keybinds
             .iter()
             .find(|kb| kb.command == Command::ExitChord)
-            .cloned()
-        {
-            let chords = keybinds
-                .iter_mut()
-                .filter(|kb| kb.command == Command::Chord)
-                .collect();
-            propagate_exit_chord(chords, global_exit_chord);
-        }
+            .cloned();
+        let chords = keybinds
+            .iter_mut()
+            .filter(|kb| kb.command == Command::Chord)
+            .collect();
+        propagate_exit_chord(chords, global_exit_chord);
 
         return Ok(keybinds);
     }
     Err(LeftError::NoConfigFound)
 }
 
-fn propagate_exit_chord(chords: Vec<&mut Keybind>, exit_chord: Keybind) {
+fn propagate_exit_chord(chords: Vec<&mut Keybind>, exit_chord: Option<Keybind>) {
     for chord in chords {
         if let Some(children) = &mut chord.children {
             if !children.iter().any(|kb| kb.command == Command::ExitChord) {
-                children.push(exit_chord.clone());
+                if let Some(ref exit_chord) = exit_chord {
+                    children.push(exit_chord.clone());
+                }
             }
-            if let Some(parent_exit_chord) = children
+            let parent_exit_chord = children
                 .iter()
                 .find(|kb| kb.command == Command::ExitChord)
-                .cloned()
-            {
-                let sub_chords = children
-                    .iter_mut()
-                    .filter(|kb| kb.command == Command::Chord)
-                    .collect();
-                propagate_exit_chord(sub_chords, parent_exit_chord);
-            }
+                .cloned();
+            let sub_chords = children
+                .iter_mut()
+                .filter(|kb| kb.command == Command::Chord)
+                .collect();
+            propagate_exit_chord(sub_chords, parent_exit_chord);
         }
     }
 }

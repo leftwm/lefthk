@@ -57,6 +57,7 @@ impl Worker {
                     Err(err) => log::error!("Unable to load new config due to error: {}", err),
                 }
                 self.reload_requested = false;
+                continue;
             }
 
             if self.chord_elapsed {
@@ -66,7 +67,7 @@ impl Worker {
             }
 
             tokio::select! {
-                _ = self.xwrap.wait_readable() => {
+                _ = self.xwrap.wait_readable(), if !self.reload_requested => {
                     let event_in_queue = self.xwrap.queue_len();
                     for _ in 0..event_in_queue {
                         let xlib_event = self.xwrap.get_next_event();
