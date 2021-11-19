@@ -1,6 +1,6 @@
-use crate::errors as local_errors;
+use crate::errors::LeftError;
 use clap::{App, Arg};
-use lefthk_core::{config::Config, errors::LeftError, worker::Worker};
+use lefthk_core::{config::Config, worker::Worker};
 use std::fs;
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -8,6 +8,7 @@ use xdg::BaseDirectories;
 
 pub mod config;
 pub mod errors;
+mod tests;
 
 fn main() {
     let matches = App::new("LeftHK Hot Key Daemon")
@@ -34,6 +35,8 @@ fn main() {
     } else {
         pretty_env_logger::init();
         let mut old_config = None;
+        let path = errors::exit_on_error!(BaseDirectories::with_prefix("lefthk"));
+        let config_file = errors::exit_on_error!(path.place_config_file("config.kdl"));
         loop {
             let config = match config::load() {
                 Ok(config) => config,
@@ -47,9 +50,9 @@ fn main() {
             };
             let kill_requested = AtomicBool::new(false);
             let completed = std::panic::catch_unwind(|| {
-                let rt = local_errors::return_on_error!(tokio::runtime::Runtime::new());
+                let rt = errors::return_on_error!(tokio::runtime::Runtime::new());
                 let _rt_guard = rt.enter();
-                let mut worker = Worker::new(config.mapped_bindings());
+                let mut worker = Worker::new(config.mapped_bindings(), config_file.clone());
 
                 rt.block_on(worker.event_loop());
                 kill_requested.store(worker.kill_requested, Ordering::SeqCst);
@@ -68,8 +71,8 @@ fn main() {
 }
 
 fn send_command(command: &str) {
-    let path = local_errors::exit_on_error!(BaseDirectories::with_prefix("lefthk"));
-    let pipe_file = local_errors::exit_on_error!(path.place_runtime_file("commands.pipe"));
+    let path = errors::exit_on_error!(BaseDirectories::with_prefix("lefthk"));
+    let pipe_file = errors::exit_on_error!(path.place_runtime_file("commands.pipe"));
     let mut pipe = fs::OpenOptions::new().write(true).open(&pipe_file).unwrap();
     writeln!(&mut pipe, "{}", command).unwrap();
 }

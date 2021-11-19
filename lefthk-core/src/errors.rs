@@ -31,8 +31,6 @@ pub type Error = std::result::Result<(), LeftError>;
 pub enum LeftError {
     #[error("IO error: {0}.")]
     IoError(#[from] std::io::Error),
-    #[error("Kdl error: {0}.")]
-    KdlError(#[from] kdl::KdlError),
     #[error("Nix errno: {0}.")]
     NixErrno(#[from] nix::errno::Errno),
     #[error("Xlib error: {0}.")]

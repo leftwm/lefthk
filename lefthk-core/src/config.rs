@@ -1,13 +1,12 @@
 use crate::errors::{Error, LeftError, Result};
 use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
-use serde::{Deserialize, Serialize};
 use std::os::unix::prelude::AsRawFd;
 use std::sync::Arc;
 use std::{convert::TryFrom, path::Path};
 use tokio::sync::{oneshot, Notify};
 use tokio::time::Duration;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Command {
     Chord(Vec<Keybind>),
     Execute(String),
@@ -42,7 +41,7 @@ fn without_head<'a, 'b>(s: &'a str, head: &'b str) -> &'a str {
     &s[head.len()..]
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Keybind {
     pub command: Command,
     pub modifier: Vec<String>,

@@ -36,10 +36,6 @@ pub enum LeftError {
     IoError(#[from] std::io::Error),
     #[error("Kdl error: {0}.")]
     KdlError(#[from] kdl::KdlError),
-    #[error("Nix errno: {0}.")]
-    NixErrno(#[from] nix::errno::Errno),
-    #[error("Xlib error: {0}.")]
-    XlibError(#[from] x11_dl::error::OpenError),
     #[error("XDG error: {0}.")]
     XdgBaseDirError(#[from] xdg::BaseDirectoriesError),
 

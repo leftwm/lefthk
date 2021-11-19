@@ -3,12 +3,14 @@ use crate::errors::{self, Error, LeftError};
 use crate::ipc::Pipe;
 use crate::xkeysym_lookup;
 use crate::xwrap::XWrap;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use x11_dl::xlib;
 use xdg::BaseDirectories;
 
 pub struct Worker {
     pub keybinds: Vec<Keybind>,
+    pub config_file: PathBuf,
     pub xwrap: XWrap,
     pub reload_requested: bool,
     pub kill_requested: bool,
@@ -23,9 +25,10 @@ impl Drop for Worker {
 }
 
 impl Worker {
-    pub fn new(keybinds: Vec<Keybind>) -> Self {
+    pub fn new(keybinds: Vec<Keybind>, config_file: PathBuf) -> Self {
         Self {
             keybinds,
+            config_file,
             xwrap: XWrap::new(),
             reload_requested: false,
             kill_requested: false,
@@ -37,16 +40,11 @@ impl Worker {
     pub async fn event_loop(&mut self) {
         self.xwrap.grab_keys(&self.keybinds);
         let path = errors::exit_on_error!(BaseDirectories::with_prefix("lefthk"));
-        let config_file = errors::exit_on_error!(path.place_config_file("config.kdl"));
-        let mut watcher = errors::exit_on_error!(Watcher::new(&config_file));
+        let mut watcher = errors::exit_on_error!(Watcher::new(&self.config_file));
         let pipe_file = errors::exit_on_error!(path.place_runtime_file("commands.pipe"));
         let mut pipe = errors::exit_on_error!(Pipe::new(pipe_file).await);
         loop {
-            if self.kill_requested {
-                break;
-            }
-
-            if self.reload_requested {
+            if self.kill_requested || self.reload_requested {
                 break;
             }
 
@@ -67,7 +65,7 @@ impl Worker {
                 }
                 _ = watcher.wait_readable() => {
                     if watcher.has_events() {
-                        errors::exit_on_error!(watcher.refresh_watch(&config_file));
+                        errors::exit_on_error!(watcher.refresh_watch(&self.config_file));
                         self.reload_requested = true;
                     }
                     continue;
