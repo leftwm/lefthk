@@ -9,18 +9,6 @@ macro_rules! log_on_error {
     };
 }
 
-macro_rules! return_on_error {
-    ($a: expr) => {
-        match $a {
-            Ok(value) => value,
-            Err(err) => {
-                log::error!("Returning due to error: {}", LeftError::from(err));
-                return;
-            }
-        }
-    };
-}
-
 macro_rules! exit_on_error {
     ($a: expr) => {
         match $a {
@@ -35,7 +23,6 @@ macro_rules! exit_on_error {
 
 pub(crate) use exit_on_error;
 pub(crate) use log_on_error;
-pub(crate) use return_on_error;
 
 pub type Result<T> = std::result::Result<T, LeftError>;
 pub type Error = std::result::Result<(), LeftError>;

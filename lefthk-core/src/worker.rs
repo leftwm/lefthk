@@ -47,17 +47,7 @@ impl Worker {
             }
 
             if self.reload_requested {
-                match config::load() {
-                    Ok(keybinds) => {
-                        if self.keybinds != keybinds {
-                            self.keybinds = keybinds;
-                            self.xwrap.grab_keys(&self.keybinds);
-                        }
-                    }
-                    Err(err) => log::error!("Unable to load new config due to error: {}", err),
-                }
-                self.reload_requested = false;
-                continue;
+                break;
             }
 
             if self.chord_elapsed {
@@ -108,18 +98,15 @@ impl Worker {
         let mask = xkeysym_lookup::clean_mask(event.state);
         if let Some(keybind) = self.get_keybind((mask, key)) {
             match keybind.command {
-                config::Command::Chord => {
-                    self.chord_keybinds = keybind.children;
+                config::Command::Chord(children) => {
+                    self.chord_keybinds = Some(children);
                     if let Some(keybinds) = &self.chord_keybinds {
                         self.xwrap.grab_keys(keybinds);
                     }
                 }
-                config::Command::Execute => {
+                config::Command::Execute(value) => {
                     self.chord_elapsed = self.chord_keybinds.is_some();
-                    if let Some(value) = &keybind.value {
-                        return exec(value);
-                    }
-                    return Err(LeftError::ValueNotFound);
+                    return exec(&value);
                 }
                 config::Command::ExitChord => {
                     if self.chord_keybinds.is_some() {

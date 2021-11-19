@@ -172,6 +172,26 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "kdl",
+ "lefthk-core",
+ "log",
+ "mio",
+ "nix",
+ "pretty_env_logger",
+ "serde",
+ "serde_kdl",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "x11-dl",
+ "xdg",
+]
+
+[[package]]
+name = "lefthk-core"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "kdl",
  "log",
  "mio",
  "nix",
