@@ -12,7 +12,7 @@ pub struct XWrap {
     pub xlib: xlib::Xlib,
     pub display: *mut xlib::Display,
     pub root: xlib::Window,
-    task_notify: Arc<Notify>,
+    pub task_notify: Arc<Notify>,
     _task_guard: oneshot::Receiver<()>,
 }
 
@@ -187,11 +187,9 @@ impl XWrap {
     pub fn queue_len(&self) -> i32 {
         unsafe { (self.xlib.XPending)(self.display) }
     }
+}
 
-    /// Wait until readable.
-    pub async fn wait_readable(&mut self) {
-        let _ = Box::pin(async move {
-            self.task_notify.notified().await;
-        });
-    }
+/// Wait until readable.
+pub async fn wait_readable(task_notify: Arc<Notify>) {
+    task_notify.notified().await;
 }
