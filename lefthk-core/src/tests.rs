@@ -13,9 +13,10 @@ pub(crate) mod test {
 
 /// Config Testing
 #[cfg(test)]
+#[cfg(feature = "watcher")]
 mod config {
     use super::test::temp_path;
-    use crate::config::Watcher;
+    use crate::config::watcher::Watcher;
     use tokio::{fs, io::AsyncWriteExt};
 
     #[tokio::test]
