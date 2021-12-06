@@ -1,8 +1,8 @@
 use crate::config::{self, Keybind};
 use crate::errors::{self, Error, LeftError};
 use crate::ipc::Pipe;
-use crate::xwrap::XWrap;
-use crate::{xkeysym_lookup, xwrap};
+use crate::xkeysym_lookup;
+use crate::xwrap::{self, XWrap};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use x11_dl::xlib;
@@ -105,8 +105,11 @@ impl Worker {
                 self.chord_elapsed = false;
             }
 
+            let task_notify = xwrap::wait_readable(self.xwrap.task_notify.clone());
+            tokio::pin!(task_notify);
+
             tokio::select! {
-                _ = self.xwrap.wait_readable() => {
+                _ = &mut task_notify => {
                     let event_in_queue = self.xwrap.queue_len();
                     for _ in 0..event_in_queue {
                         let xlib_event = self.xwrap.get_next_event();
