@@ -2,6 +2,10 @@
 name = "lefthk"
 version = "0.1.0"
 edition = "2018"
+license = "BSD-3-Clause"
+readme = "README.md"
+repository = "https://github.com/leftwm/lefthk"
+description = "A hotkey daemon for Adventurers"
 
 [dependencies]
 clap = "2.3.0"
