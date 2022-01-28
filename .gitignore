@@ -1,7 +1,10 @@
-/target
+**/target
 **/*.rs.bk
+leftwm.logs
+.idea/
 
-/target
-**/*.rs.bk
+result
+.direnv
+.envrc
 
 sweep.timestamptarget
