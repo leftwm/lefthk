@@ -3,6 +3,7 @@ use crate::errors::{self, Error, LeftError};
 use crate::ipc::Pipe;
 use crate::xkeysym_lookup;
 use crate::xwrap::{self, XWrap};
+#[cfg(feature = "watcher")]
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use x11_dl::xlib;
@@ -10,7 +11,9 @@ use xdg::BaseDirectories;
 
 pub struct Worker {
     pub keybinds: Vec<Keybind>,
+    #[cfg(feature = "watcher")]
     pub config_file: PathBuf,
+    pub base_directory: BaseDirectories,
     pub xwrap: XWrap,
     pub reload_requested: bool,
     pub kill_requested: bool,
@@ -25,10 +28,16 @@ impl Drop for Worker {
 }
 
 impl Worker {
-    pub fn new(keybinds: Vec<Keybind>, config_file: PathBuf) -> Self {
+    #[cfg(feature = "watcher")]
+    pub fn new(
+        keybinds: Vec<Keybind>,
+        config_file: PathBuf,
+        base_directory: BaseDirectories,
+    ) -> Self {
         Self {
             keybinds,
             config_file,
+            base_directory,
             xwrap: XWrap::new(),
             reload_requested: false,
             kill_requested: false,
@@ -42,9 +51,9 @@ impl Worker {
         use crate::config::watcher::Watcher;
 
         self.xwrap.grab_keys(&self.keybinds);
-        let path = errors::exit_on_error!(BaseDirectories::with_prefix("lefthk"));
         let mut watcher = errors::exit_on_error!(Watcher::new(&self.config_file));
-        let pipe_file = errors::exit_on_error!(path.place_runtime_file("commands.pipe"));
+        let pipe_name = Pipe::pipe_name();
+        let pipe_file = errors::exit_on_error!(self.base_directory.place_runtime_file(pipe_name));
         let mut pipe = errors::exit_on_error!(Pipe::new(pipe_file).await);
         loop {
             if self.kill_requested || self.reload_requested {
@@ -89,10 +98,23 @@ impl Worker {
     }
 
     #[cfg(not(feature = "watcher"))]
+    pub fn new(keybinds: Vec<Keybind>, base_directory: BaseDirectories) -> Self {
+        Self {
+            keybinds,
+            base_directory,
+            xwrap: XWrap::new(),
+            reload_requested: false,
+            kill_requested: false,
+            chord_keybinds: None,
+            chord_elapsed: false,
+        }
+    }
+
+    #[cfg(not(feature = "watcher"))]
     pub async fn event_loop(&mut self) {
         self.xwrap.grab_keys(&self.keybinds);
-        let path = errors::exit_on_error!(BaseDirectories::with_prefix("lefthk"));
-        let pipe_file = errors::exit_on_error!(path.place_runtime_file("commands.pipe"));
+        let pipe_name = Pipe::pipe_name();
+        let pipe_file = errors::exit_on_error!(self.base_directory.place_runtime_file(pipe_name));
         let mut pipe = errors::exit_on_error!(Pipe::new(pipe_file).await);
         loop {
             if self.kill_requested || self.reload_requested {

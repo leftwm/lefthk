@@ -50,6 +50,15 @@ impl Pipe {
         Ok(Self { pipe_file, rx })
     }
 
+    pub fn pipe_name() -> PathBuf {
+        let display = std::env::var("DISPLAY")
+            .ok()
+            .and_then(|d| d.rsplit_once(':').map(|(_, r)| r.to_owned()))
+            .unwrap_or_else(|| "0".to_string());
+
+        PathBuf::from(format!("command-{}.pipe", display))
+    }
+
     pub async fn read_command(&mut self) -> Option<Command> {
         self.rx.recv().await
     }
