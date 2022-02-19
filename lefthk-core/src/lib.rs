@@ -1,5 +1,6 @@
 mod tests;
 
+pub mod child;
 pub mod config;
 pub mod errors;
 pub mod ipc;

@@ -61,6 +61,8 @@ fn main() {
                 #[cfg(not(feature = "watcher"))]
                 let mut worker = Worker::new(config.mapped_bindings(), path.clone());
 
+                worker.register_child_hook();
+
                 rt.block_on(worker.event_loop());
                 kill_requested.store(worker.kill_requested, Ordering::SeqCst);
             });
