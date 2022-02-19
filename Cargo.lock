@@ -208,6 +208,7 @@ dependencies = [
  "log",
  "mio",
  "nix",
+ "signal-hook",
  "tempfile",
  "thiserror",
  "tokio",
@@ -542,6 +543,25 @@ checksum = "a3466b825d24b720fbdc89a64e0c548b5484d622f47974f5d10248eb5c04d389"
 dependencies = [
  "kdl",
  "serde",
+]
+
+[[package]]
+name = "signal-hook"
+version = "0.3.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "647c97df271007dcea485bb74ffdb57f2e683f1306c854f468a0c244badabf2d"
+dependencies = [
+ "libc",
+ "signal-hook-registry",
+]
+
+[[package]]
+name = "signal-hook-registry"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e51e73328dc4ac0c7ccbda3a494dfa03df1de2f46018127f60c693f2648455b0"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

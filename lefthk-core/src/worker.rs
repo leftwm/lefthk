@@ -1,3 +1,4 @@
+use crate::child::{register_child_hook, Children};
 use crate::config::{self, Keybind};
 use crate::errors::{self, Error, LeftError};
 use crate::ipc::Pipe;
@@ -6,6 +7,9 @@ use crate::xwrap::{self, XWrap};
 #[cfg(feature = "watcher")]
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use x11_dl::xlib;
 use xdg::BaseDirectories;
 
@@ -15,6 +19,8 @@ pub struct Worker {
     pub config_file: PathBuf,
     pub base_directory: BaseDirectories,
     pub xwrap: XWrap,
+    pub children: Children,
+    pub reap_requested: Arc<AtomicBool>,
     pub reload_requested: bool,
     pub kill_requested: bool,
     chord_keybinds: Option<Vec<Keybind>>,
@@ -39,6 +45,8 @@ impl Worker {
             config_file,
             base_directory,
             xwrap: XWrap::new(),
+            children: Default::default(),
+            reap_requested: Default::default(),
             reload_requested: false,
             kill_requested: false,
             chord_keybinds: None,
@@ -70,6 +78,11 @@ impl Worker {
             tokio::pin!(task_notify);
 
             tokio::select! {
+                _ = timeout(500) => {
+                    if self.reap_requested.swap(false, Ordering::SeqCst) {
+                        self.children.reap();
+                    }
+                }
                 _ = &mut task_notify => {
                     let event_in_queue = self.xwrap.queue_len();
                     for _ in 0..event_in_queue {
@@ -103,6 +116,8 @@ impl Worker {
             keybinds,
             base_directory,
             xwrap: XWrap::new(),
+            children: Default::default(),
+            reap_requested: Default::default(),
             reload_requested: false,
             kill_requested: false,
             chord_keybinds: None,
@@ -131,6 +146,11 @@ impl Worker {
             tokio::pin!(task_notify);
 
             tokio::select! {
+                _ = timeout(500) => {
+                    if self.reap_requested.swap(false, Ordering::SeqCst) {
+                        self.children.reap();
+                    }
+                }
                 _ = &mut task_notify => {
                     let event_in_queue = self.xwrap.queue_len();
                     for _ in 0..event_in_queue {
@@ -173,7 +193,7 @@ impl Worker {
                 }
                 config::Command::Execute(value) => {
                     self.chord_elapsed = self.chord_keybinds.is_some();
-                    return exec(&value);
+                    return self.exec(&value);
                 }
                 config::Command::ExitChord => {
                     if self.chord_keybinds.is_some() {
@@ -213,16 +233,27 @@ impl Worker {
         }
         Ok(())
     }
+
+    /// Sends command for execution
+    /// Assumes STDIN/STDOUT unwanted.
+    pub fn exec(&mut self, command: &str) -> Error {
+        let child = Command::new("sh")
+            .arg("-c")
+            .arg(&command)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .spawn()?;
+        self.children.insert(child);
+        println!("Children {:?}", self.children);
+        Ok(())
+    }
+
+    pub fn register_child_hook(&self) {
+        register_child_hook(self.reap_requested.clone());
+    }
 }
 
-/// Sends command for execution
-/// Assumes STDIN/STDOUT unwanted.
-pub fn exec(command: &str) -> Error {
-    Command::new("sh")
-        .arg("-c")
-        .arg(&command)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .spawn()?;
-    Ok(())
+async fn timeout(mills: u64) {
+    use tokio::time::{sleep, Duration};
+    sleep(Duration::from_millis(mills)).await;
 }
