@@ -39,7 +39,6 @@ impl Children {
     }
     /// Try reaping all the children processes managed by this struct.
     pub fn reap(&mut self) {
-        println!("Reaping");
         // The `try_wait` needs `child` to be `mut`, but only `HashMap::retain`
         // allows modifying the value. Here `id` is not needed.
         self.inner

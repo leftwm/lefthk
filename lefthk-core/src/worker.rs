@@ -64,6 +64,10 @@ impl Worker {
         let pipe_file = errors::exit_on_error!(self.base_directory.place_runtime_file(pipe_name));
         let mut pipe = errors::exit_on_error!(Pipe::new(pipe_file).await);
         loop {
+            if self.reap_requested.swap(false, Ordering::SeqCst) {
+                self.children.reap();
+            }
+
             if self.kill_requested || self.reload_requested {
                 break;
             }
@@ -78,11 +82,7 @@ impl Worker {
             tokio::pin!(task_notify);
 
             tokio::select! {
-                _ = timeout(500) => {
-                    if self.reap_requested.swap(false, Ordering::SeqCst) {
-                        self.children.reap();
-                    }
-                }
+                _ = timeout(200) => {}
                 _ = &mut task_notify => {
                     let event_in_queue = self.xwrap.queue_len();
                     for _ in 0..event_in_queue {
@@ -132,6 +132,10 @@ impl Worker {
         let pipe_file = errors::exit_on_error!(self.base_directory.place_runtime_file(pipe_name));
         let mut pipe = errors::exit_on_error!(Pipe::new(pipe_file).await);
         loop {
+            if self.reap_requested.swap(false, Ordering::SeqCst) {
+                self.children.reap();
+            }
+
             if self.kill_requested || self.reload_requested {
                 break;
             }
@@ -146,11 +150,7 @@ impl Worker {
             tokio::pin!(task_notify);
 
             tokio::select! {
-                _ = timeout(500) => {
-                    if self.reap_requested.swap(false, Ordering::SeqCst) {
-                        self.children.reap();
-                    }
-                }
+                _ = timeout(200) => {}
                 _ = &mut task_notify => {
                     let event_in_queue = self.xwrap.queue_len();
                     for _ in 0..event_in_queue {
@@ -244,7 +244,6 @@ impl Worker {
             .stdout(Stdio::null())
             .spawn()?;
         self.children.insert(child);
-        println!("Children {:?}", self.children);
         Ok(())
     }
 
