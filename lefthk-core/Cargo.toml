@@ -9,7 +9,7 @@ description = "A hotkey daemon for Adventurers"
 
 [dependencies]
 log = "0.4.14"
-mio = "0.7.14"
+mio = "0.8.0"
 nix = "0.23.0"
 thiserror = "1.0.30"
 tokio = { version = "1.14.0", features = ["fs", "io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
