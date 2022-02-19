@@ -127,7 +127,6 @@ impl Worker {
 
     #[cfg(not(feature = "watcher"))]
     pub async fn event_loop(&mut self) {
-        self.register_child_hook();
         self.xwrap.grab_keys(&self.keybinds);
         let pipe_name = Pipe::pipe_name();
         let pipe_file = errors::exit_on_error!(self.base_directory.place_runtime_file(pipe_name));
