@@ -1,4 +1,4 @@
-use crate::child::{register_child_hook, Children};
+use crate::child::Children;
 use crate::config::{self, Keybind};
 use crate::errors::{self, Error, LeftError};
 use crate::ipc::Pipe;
@@ -7,9 +7,6 @@ use crate::xwrap::{self, XWrap};
 #[cfg(feature = "watcher")]
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
 use x11_dl::xlib;
 use xdg::BaseDirectories;
 
@@ -20,7 +17,6 @@ pub struct Worker {
     pub base_directory: BaseDirectories,
     pub xwrap: XWrap,
     pub children: Children,
-    pub reap_requested: Arc<AtomicBool>,
     pub reload_requested: bool,
     pub kill_requested: bool,
     chord_keybinds: Option<Vec<Keybind>>,
@@ -45,8 +41,7 @@ impl Worker {
             config_file,
             base_directory,
             xwrap: XWrap::new(),
-            children: Default::default(),
-            reap_requested: Default::default(),
+            children: Children::new(),
             reload_requested: false,
             kill_requested: false,
             chord_keybinds: None,
@@ -64,10 +59,6 @@ impl Worker {
         let pipe_file = errors::exit_on_error!(self.base_directory.place_runtime_file(pipe_name));
         let mut pipe = errors::exit_on_error!(Pipe::new(pipe_file).await);
         loop {
-            if self.reap_requested.swap(false, Ordering::SeqCst) {
-                self.children.reap();
-            }
-
             if self.kill_requested || self.reload_requested {
                 break;
             }
@@ -82,7 +73,10 @@ impl Worker {
             tokio::pin!(task_notify);
 
             tokio::select! {
-                _ = timeout(200) => {}
+                _ = self.children.wait_readable() => {
+                    self.children.reap();
+                    continue;
+                }
                 _ = &mut task_notify => {
                     let event_in_queue = self.xwrap.queue_len();
                     for _ in 0..event_in_queue {
@@ -117,7 +111,6 @@ impl Worker {
             base_directory,
             xwrap: XWrap::new(),
             children: Default::default(),
-            reap_requested: Default::default(),
             reload_requested: false,
             kill_requested: false,
             chord_keybinds: None,
@@ -132,10 +125,6 @@ impl Worker {
         let pipe_file = errors::exit_on_error!(self.base_directory.place_runtime_file(pipe_name));
         let mut pipe = errors::exit_on_error!(Pipe::new(pipe_file).await);
         loop {
-            if self.reap_requested.swap(false, Ordering::SeqCst) {
-                self.children.reap();
-            }
-
             if self.kill_requested || self.reload_requested {
                 break;
             }
@@ -150,7 +139,10 @@ impl Worker {
             tokio::pin!(task_notify);
 
             tokio::select! {
-                _ = timeout(200) => {}
+                _ = self.children.wait_readable() => {
+                    self.children.reap();
+                    continue;
+                }
                 _ = &mut task_notify => {
                     let event_in_queue = self.xwrap.queue_len();
                     for _ in 0..event_in_queue {
@@ -246,13 +238,4 @@ impl Worker {
         self.children.insert(child);
         Ok(())
     }
-
-    pub fn register_child_hook(&self) {
-        register_child_hook(self.reap_requested.clone());
-    }
-}
-
-async fn timeout(mills: u64) {
-    use tokio::time::{sleep, Duration};
-    sleep(Duration::from_millis(mills)).await;
 }
