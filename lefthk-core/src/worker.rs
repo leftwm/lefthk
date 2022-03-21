@@ -74,7 +74,6 @@ impl Worker {
 
             tokio::select! {
                 _ = self.children.wait_readable() => {
-                    println!("Reaping");
                     self.children.reap();
                     continue;
                 }

@@ -36,7 +36,6 @@ impl Children {
                 return;
             }
             for _ in signals.forever() {
-                println!("Notify");
                 notify.notify_one();
             }
         });
