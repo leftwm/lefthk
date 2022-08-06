@@ -49,8 +49,6 @@ pub enum LeftError {
     NoConfigFound,
     #[error("No value set for execution.")]
     ValueNotFound,
-    #[error("Config watcher dropped.")]
-    WatcherDropped,
     #[error("X failed status error.")]
     XFailedStatus,
 }

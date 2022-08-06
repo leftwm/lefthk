@@ -1,7 +1,9 @@
 use crate::config::Keybind;
 use crate::errors::{self, Error, LeftError};
 use crate::xkeysym_lookup;
+use std::future::Future;
 use std::os::raw::{c_int, c_ulong};
+use std::pin::Pin;
 use std::ptr;
 use std::sync::Arc;
 use tokio::sync::{oneshot, Notify};
@@ -44,7 +46,7 @@ impl XWrap {
             SERVER,
             mio::Interest::READABLE,
         ));
-        let timeout = Duration::from_millis(50);
+        let timeout = Duration::from_millis(100);
         tokio::task::spawn_blocking(move || loop {
             if guard.is_closed() {
                 return;
@@ -187,9 +189,12 @@ impl XWrap {
     pub fn queue_len(&self) -> i32 {
         unsafe { (self.xlib.XPending)(self.display) }
     }
-}
 
-/// Wait until readable.
-pub async fn wait_readable(task_notify: Arc<Notify>) {
-    task_notify.notified().await;
+    /// Wait until readable.
+    pub fn wait_readable(&mut self) -> Pin<Box<dyn Future<Output = ()>>> {
+        let task_notify = self.task_notify.clone();
+        Box::pin(async move {
+            task_notify.notified().await;
+        })
+    }
 }

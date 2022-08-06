@@ -19,8 +19,5 @@ thiserror = "1.0.30"
 tokio = { version = "1.14.0", features = ["fs", "io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
 xdg = "2.4.0"
 
-[features]
-watcher = ["lefthk-core/watcher"]
-
 [dev-dependencies]
 tempfile = "3.2.0"

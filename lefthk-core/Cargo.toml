@@ -17,8 +17,5 @@ tokio = { version = "1.14.0", features = ["fs", "io-util", "macros", "net", "rt-
 x11-dl = "2.19.1"
 xdg = "2.4.0"
 
-[features]
-watcher = []
-
 [dev-dependencies]
 tempfile = "3.2.0"
