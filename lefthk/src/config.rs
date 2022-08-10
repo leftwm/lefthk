@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fs, path::Path};
 use xdg::BaseDirectories;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 pub enum Command {
     Chord,
     Execute,

@@ -37,8 +37,6 @@ fn main() {
         pretty_env_logger::init();
         let mut old_config = None;
         let path = errors::exit_on_error!(BaseDirectories::with_prefix("lefthk"));
-        #[cfg(feature = "watcher")]
-        let config_file = errors::exit_on_error!(path.place_config_file("config.kdl"));
         loop {
             let config = match config::load() {
                 Ok(config) => config,
@@ -54,11 +52,7 @@ fn main() {
             let completed = std::panic::catch_unwind(|| {
                 let rt = errors::return_on_error!(tokio::runtime::Runtime::new());
                 let _rt_guard = rt.enter();
-                #[cfg(feature = "watcher")]
-                let mut worker =
-                    Worker::new(config.mapped_bindings(), config_file.clone(), path.clone());
 
-                #[cfg(not(feature = "watcher"))]
                 let mut worker = Worker::new(config.mapped_bindings(), path.clone());
 
                 rt.block_on(worker.event_loop());

@@ -11,31 +11,6 @@ pub(crate) mod test {
     }
 }
 
-/// Config Testing
-#[cfg(test)]
-#[cfg(feature = "watcher")]
-mod config {
-    use super::test::temp_path;
-    use crate::config::watcher::Watcher;
-    use tokio::{fs, io::AsyncWriteExt};
-
-    #[tokio::test]
-    async fn check_watcher() {
-        let config_file = temp_path().await.unwrap();
-        let watcher = Watcher::new(&config_file).unwrap();
-
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .open(&config_file)
-            .await
-            .unwrap();
-        file.write_all(b"\n").await.unwrap();
-        file.flush().await.unwrap();
-
-        assert!(watcher.has_events());
-    }
-}
-
 /// IPC Testing
 #[cfg(test)]
 mod ipc {
