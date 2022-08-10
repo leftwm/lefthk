@@ -3,17 +3,13 @@ use crate::config::{self, Keybind};
 use crate::errors::{self, Error, LeftError};
 use crate::ipc::Pipe;
 use crate::xkeysym_lookup;
-use crate::xwrap::{self, XWrap};
-#[cfg(feature = "watcher")]
-use std::path::PathBuf;
+use crate::xwrap::XWrap;
 use std::process::{Command, Stdio};
 use x11_dl::xlib;
 use xdg::BaseDirectories;
 
 pub struct Worker {
     pub keybinds: Vec<Keybind>,
-    #[cfg(feature = "watcher")]
-    pub config_file: PathBuf,
     pub base_directory: BaseDirectories,
     pub xwrap: XWrap,
     pub children: Children,
@@ -30,81 +26,6 @@ impl Drop for Worker {
 }
 
 impl Worker {
-    #[cfg(feature = "watcher")]
-    pub fn new(
-        keybinds: Vec<Keybind>,
-        config_file: PathBuf,
-        base_directory: BaseDirectories,
-    ) -> Self {
-        Self {
-            keybinds,
-            config_file,
-            base_directory,
-            xwrap: XWrap::new(),
-            children: Children::new(),
-            reload_requested: false,
-            kill_requested: false,
-            chord_keybinds: None,
-            chord_elapsed: false,
-        }
-    }
-
-    #[cfg(feature = "watcher")]
-    pub async fn event_loop(&mut self) {
-        use crate::config::watcher::Watcher;
-
-        self.xwrap.grab_keys(&self.keybinds);
-        let mut watcher = errors::exit_on_error!(Watcher::new(&self.config_file));
-        let pipe_name = Pipe::pipe_name();
-        let pipe_file = errors::exit_on_error!(self.base_directory.place_runtime_file(pipe_name));
-        let mut pipe = errors::exit_on_error!(Pipe::new(pipe_file).await);
-        loop {
-            if self.kill_requested || self.reload_requested {
-                break;
-            }
-
-            if self.chord_elapsed {
-                self.xwrap.grab_keys(&self.keybinds);
-                self.chord_keybinds = None;
-                self.chord_elapsed = false;
-            }
-
-            let task_notify = xwrap::wait_readable(self.xwrap.task_notify.clone());
-            tokio::pin!(task_notify);
-
-            tokio::select! {
-                _ = self.children.wait_readable() => {
-                    self.children.reap();
-                    continue;
-                }
-                _ = &mut task_notify => {
-                    let event_in_queue = self.xwrap.queue_len();
-                    for _ in 0..event_in_queue {
-                        let xlib_event = self.xwrap.get_next_event();
-                        self.handle_event(&xlib_event);
-                    }
-                    continue;
-                }
-                _ = watcher.wait_readable(), if cfg!(watcher) => {
-                    if watcher.has_events() {
-                        errors::exit_on_error!(watcher.refresh_watch(&self.config_file));
-                        self.reload_requested = true;
-                    }
-                    continue;
-                }
-                Some(command) = pipe.read_command() => {
-                    match command {
-                        config::Command::Reload => self.reload_requested = true,
-                        config::Command::Kill => self.kill_requested = true,
-                        _ => (),
-                    }
-                    continue;
-                }
-            }
-        }
-    }
-
-    #[cfg(not(feature = "watcher"))]
     pub fn new(keybinds: Vec<Keybind>, base_directory: BaseDirectories) -> Self {
         Self {
             keybinds,
@@ -118,7 +39,6 @@ impl Worker {
         }
     }
 
-    #[cfg(not(feature = "watcher"))]
     pub async fn event_loop(&mut self) {
         self.xwrap.grab_keys(&self.keybinds);
         let pipe_name = Pipe::pipe_name();
@@ -134,18 +54,18 @@ impl Worker {
                 self.chord_keybinds = None;
                 self.chord_elapsed = false;
             }
-
-            let task_notify = xwrap::wait_readable(self.xwrap.task_notify.clone());
-            tokio::pin!(task_notify);
+            println!("1");
 
             tokio::select! {
                 _ = self.children.wait_readable() => {
                     self.children.reap();
                     continue;
                 }
-                _ = &mut task_notify => {
+                _ = self.xwrap.wait_readable() => {
+                    println!("2");
                     let event_in_queue = self.xwrap.queue_len();
                     for _ in 0..event_in_queue {
+                        println!("3");
                         let xlib_event = self.xwrap.get_next_event();
                         self.handle_event(&xlib_event);
                     }
@@ -169,7 +89,7 @@ impl Worker {
             xlib::MappingNotify => self.mapping_notify(&mut xlib::XMappingEvent::from(xlib_event)),
             _ => return,
         };
-        let _ = errors::log_on_error!(error);
+        errors::log_on_error!(error);
     }
 
     fn key_press(&mut self, event: &xlib::XKeyEvent) -> Error {
