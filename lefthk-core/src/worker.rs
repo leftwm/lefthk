@@ -54,7 +54,6 @@ impl Worker {
                 self.chord_keybinds = None;
                 self.chord_elapsed = false;
             }
-            println!("1");
 
             tokio::select! {
                 _ = self.children.wait_readable() => {
@@ -62,10 +61,8 @@ impl Worker {
                     continue;
                 }
                 _ = self.xwrap.wait_readable() => {
-                    println!("2");
                     let event_in_queue = self.xwrap.queue_len();
                     for _ in 0..event_in_queue {
-                        println!("3");
                         let xlib_event = self.xwrap.get_next_event();
                         self.handle_event(&xlib_event);
                     }
