@@ -2,6 +2,7 @@ use std::iter::Extend;
 use std::pin::Pin;
 use std::process::Child;
 use std::sync::Arc;
+use std::time::Duration;
 use std::{collections::HashMap, future::Future};
 
 use signal_hook::consts::signal;
@@ -28,7 +29,7 @@ impl Default for Children {
 
 impl Children {
     pub fn new() -> Self {
-        let (guard, _task_guard) = oneshot::channel::<()>();
+        let (guard, _task_guard) = oneshot::channel();
         let task_notify = Arc::new(Notify::new());
         let notify = task_notify.clone();
         let mut signals = Signals::new(&[signal::SIGCHLD]).expect("Couldn't setup signals.");
@@ -36,9 +37,10 @@ impl Children {
             if guard.is_closed() {
                 return;
             }
-            for _ in signals.forever() {
+            for _ in signals.pending() {
                 notify.notify_one();
             }
+            std::thread::sleep(Duration::from_millis(100));
         });
 
         Self {
