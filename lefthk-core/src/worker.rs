@@ -45,6 +45,8 @@ impl Worker {
         let pipe_file = errors::exit_on_error!(self.base_directory.place_runtime_file(pipe_name));
         let mut pipe = errors::exit_on_error!(Pipe::new(pipe_file).await);
         loop {
+            self.xwrap.flush();
+
             if self.kill_requested || self.reload_requested {
                 break;
             }

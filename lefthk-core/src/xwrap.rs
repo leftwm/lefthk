@@ -36,7 +36,7 @@ impl XWrap {
         assert!(!display.is_null(), "Null pointer in display");
 
         let fd = unsafe { (xlib.XConnectionNumber)(display) };
-        let (guard, _task_guard) = oneshot::channel::<()>();
+        let (guard, _task_guard) = oneshot::channel();
         let notify = Arc::new(Notify::new());
         let task_notify = notify.clone();
         let mut poll = errors::exit_on_error!(mio::Poll::new());
@@ -188,6 +188,10 @@ impl XWrap {
     #[must_use]
     pub fn queue_len(&self) -> i32 {
         unsafe { (self.xlib.XPending)(self.display) }
+    }
+
+    pub fn flush(&self) {
+        unsafe { (self.xlib.XFlush)(self.display) };
     }
 
     /// Wait until readable.

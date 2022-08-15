@@ -1,7 +1,8 @@
-use std::collections::HashMap;
 use std::iter::Extend;
+use std::pin::Pin;
 use std::process::Child;
 use std::sync::Arc;
+use std::{collections::HashMap, future::Future};
 
 use signal_hook::consts::signal;
 use signal_hook::iterator::Signals;
@@ -78,8 +79,11 @@ impl Children {
             .retain(|_, child| child.try_wait().map_or(true, |ret| ret.is_none()));
     }
 
-    pub async fn wait_readable(&mut self) {
-        self.task_notify.notified().await;
+    pub fn wait_readable(&mut self) -> Pin<Box<dyn Future<Output = ()>>> {
+        let task_notify = self.task_notify.clone();
+        Box::pin(async move {
+            task_notify.notified().await;
+        })
     }
 }
 
