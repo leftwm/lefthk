@@ -19,12 +19,6 @@ pub struct Worker {
     chord_elapsed: bool,
 }
 
-impl Drop for Worker {
-    fn drop(&mut self) {
-        self.xwrap.shutdown();
-    }
-}
-
 impl Worker {
     pub fn new(keybinds: Vec<Keybind>, base_directory: BaseDirectories) -> Self {
         Self {
@@ -39,7 +33,7 @@ impl Worker {
         }
     }
 
-    pub async fn event_loop(&mut self) {
+    pub async fn event_loop(mut self) -> bool {
         self.xwrap.grab_keys(&self.keybinds);
         let pipe_name = Pipe::pipe_name();
         let pipe_file = errors::exit_on_error!(self.base_directory.place_runtime_file(pipe_name));
@@ -48,7 +42,7 @@ impl Worker {
             self.xwrap.flush();
 
             if self.kill_requested || self.reload_requested {
-                break;
+                return self.kill_requested;
             }
 
             if self.chord_elapsed {

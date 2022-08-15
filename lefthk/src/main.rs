@@ -53,12 +53,13 @@ fn main() {
                 let rt = errors::return_on_error!(tokio::runtime::Runtime::new());
                 let _rt_guard = rt.enter();
 
-                let mut worker = Worker::new(config.mapped_bindings(), path.clone());
-
-                rt.block_on(worker.event_loop());
-                kill_requested.store(worker.kill_requested, Ordering::SeqCst);
+                let kill =
+                    rt.block_on(Worker::new(config.mapped_bindings(), path.clone()).event_loop());
+                println!("Kill: {:?}", kill);
+                kill_requested.store(kill, Ordering::SeqCst);
             });
 
+            println!("Kill: {:?}", kill_requested.load(Ordering::SeqCst));
             match completed {
                 Ok(_) => log::info!("Completed"),
                 Err(err) => log::error!("Completed with error: {:?}", err),
