@@ -13,6 +13,7 @@ kdl = "3.0.0"
 lefthk-core = { path = "../lefthk-core", version = '0.1' }
 log = "0.4.14"
 pretty_env_logger = "0.4.0"
+ron = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 serde_kdl = "0.1.0"
 thiserror = "1.0.30"
