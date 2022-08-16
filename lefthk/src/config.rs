@@ -51,7 +51,7 @@ impl TryFrom<Keybind> for lefthk_core::config::Keybind {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Config {
     keybinds: Vec<Keybind>,
 }
