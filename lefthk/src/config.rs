@@ -1,4 +1,6 @@
 use crate::errors::{LeftError, Result};
+use lefthk_core::config::Command as core_command;
+use lefthk_core::config::Keybind as core_keybind;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fs, path::Path};
 use xdg::BaseDirectories;
@@ -7,47 +9,104 @@ use xdg::BaseDirectories;
 pub enum Command {
     Chord(Vec<Keybind>),
     Execute(String),
+    Executes(Vec<String>),
     ExitChord,
     Reload,
     Kill,
+}
+
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
+pub enum Key {
+    Key(String),
+    Keys(Vec<String>),
+}
+
+macro_rules! get_key {
+    ($expr:expr $(,)?) => {
+        match $expr {
+            Key::Key(key) => key,
+            Key::Keys(_) => return Err(LeftError::SingleKeyNeeded),
+        }
+    };
+}
+
+macro_rules! get_keys {
+    ($expr:expr $(,)?) => {
+        match $expr {
+            Key::Key(_) => return Err(LeftError::MultipleKeysNeeded),
+            Key::Keys(keys) => keys,
+        }
+    };
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Eq)]
 pub struct Keybind {
     pub command: Command,
     pub modifier: Vec<String>,
-    pub key: String,
+    pub key: Key,
 }
 
-impl TryFrom<Keybind> for lefthk_core::config::Keybind {
+impl TryFrom<Keybind> for Vec<core_keybind> {
     type Error = LeftError;
 
     fn try_from(kb: Keybind) -> Result<Self> {
-        let command = match kb.command {
-            Command::Chord(children) => {
+        let command_key_pairs: Vec<(core_command, String)> = match kb.command {
+            Command::Chord(children) if !children.is_empty() => {
+                let key = get_key!(kb.key);
                 let children = children
                     .iter()
                     .filter_map(|kb| match TryFrom::try_from(kb.clone()) {
-                        Ok(keybind) => Some(keybind),
+                        Ok(keybinds) => Some::<Vec<lefthk_core::config::Keybind>>(keybinds),
                         Err(err) => {
                             log::error!("Invalid key binding: {}\n{:?}", err, kb);
                             None
                         }
                     })
+                    .flatten()
                     .collect();
 
-                lefthk_core::config::Command::Chord(children)
+                vec![(core_command::Chord(children), key)]
             }
-            Command::Execute(value) => lefthk_core::config::Command::Execute(value),
-            Command::ExitChord => lefthk_core::config::Command::ExitChord,
-            Command::Reload => lefthk_core::config::Command::Reload,
-            Command::Kill => lefthk_core::config::Command::Kill,
+            Command::Chord(_) => return Err(LeftError::ChildrenNotFound),
+            Command::Execute(value) if !value.is_empty() => {
+                let keys = get_key!(kb.key);
+                vec![(core_command::Execute(value), keys)]
+            }
+            Command::Execute(_) => return Err(LeftError::ValueNotFound),
+            Command::Executes(values) if !values.is_empty() => {
+                let keys = get_keys!(kb.key);
+                if keys.len() != values.len() {
+                    return Err(LeftError::NumberOfKeysDiffersFromValues);
+                }
+                values
+                    .iter()
+                    .enumerate()
+                    .map(|(i, v)| (core_command::Execute(v.to_owned()), keys[i].clone()))
+                    .collect()
+            }
+            Command::Executes(_) => return Err(LeftError::ValuesNotFound),
+            Command::ExitChord => {
+                let keys = get_key!(kb.key);
+                vec![(core_command::ExitChord, keys)]
+            }
+            Command::Reload => {
+                let keys = get_key!(kb.key);
+                vec![(core_command::Reload, keys)]
+            }
+            Command::Kill => {
+                let keys = get_key!(kb.key);
+                vec![(core_command::Kill, keys)]
+            }
         };
-        Ok(Self {
-            command,
-            modifier: kb.modifier,
-            key: kb.key,
-        })
+        let keybinds = command_key_pairs
+            .iter()
+            .map(|(c, k)| core_keybind {
+                command: c.clone(),
+                modifier: kb.modifier.clone(),
+                key: k.to_owned(),
+            })
+            .collect();
+        Ok(keybinds)
     }
 }
 
@@ -61,12 +120,13 @@ impl lefthk_core::config::Config for Config {
         self.keybinds
             .iter()
             .filter_map(|kb| match TryFrom::try_from(kb.clone()) {
-                Ok(keybind) => Some(keybind),
+                Ok(keybinds) => Some::<Vec<lefthk_core::config::Keybind>>(keybinds),
                 Err(err) => {
                     log::error!("Invalid key binding: {}\n{:?}", err, kb);
                     None
                 }
             })
+            .flatten()
             .collect()
     }
 }
@@ -77,7 +137,7 @@ pub fn load() -> Result<Config> {
     let file_name = path.place_config_file("config.ron")?;
     if Path::new(&file_name).exists() {
         let contents = fs::read_to_string(file_name)?;
-        let mut config: Config = ron::from_str(&contents).expect("Ron error");
+        let mut config: Config = ron::from_str(&contents)?;
         let global_exit_chord = config
             .keybinds
             .iter()
@@ -88,9 +148,7 @@ pub fn load() -> Result<Config> {
             .iter_mut()
             .filter(|kb| matches!(kb.command, Command::Chord(_)))
             .collect();
-
         propagate_exit_chord(chords, global_exit_chord);
-        println!("{:?}", config);
 
         return Ok(config);
     }

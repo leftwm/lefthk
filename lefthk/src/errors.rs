@@ -34,21 +34,31 @@ pub type Error = std::result::Result<(), LeftError>;
 pub enum LeftError {
     #[error("IO error: {0}.")]
     IoError(#[from] std::io::Error),
-    #[error("Kdl error: {0}.")]
-    KdlError(#[from] kdl::KdlError),
+    #[error("RON error: {0}.")]
+    KdlError(#[from] ron::error::Error),
     #[error("XDG error: {0}.")]
     XdgBaseDirError(#[from] xdg::BaseDirectoriesError),
 
+    #[error("No chrildren found for chord.")]
+    ChildrenNotFound,
     #[error("No command found for keybind.")]
     CommandNotFound,
     #[error("No key found for keybind.")]
     KeyNotFound,
     #[error("No modifier found for keybind.")]
     ModifierNotFound,
+    #[error("Command requires multiple keys.")]
+    MultipleKeysNeeded,
     #[error("No config file found.")]
     NoConfigFound,
+    #[error("The incorrect amount of keys is set for the number of values.")]
+    NumberOfKeysDiffersFromValues,
+    #[error("Command requires a single key.")]
+    SingleKeyNeeded,
     #[error("No value set for execution.")]
     ValueNotFound,
+    #[error("No values set for executions.")]
+    ValuesNotFound,
     #[error("X failed status error.")]
     XFailedStatus,
 }
