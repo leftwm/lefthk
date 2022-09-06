@@ -1,6 +1,6 @@
 [package]
 name = "lefthk"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2021"
 license = "BSD-3-Clause"
 readme = "README.md"
