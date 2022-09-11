@@ -5,7 +5,7 @@ macro_rules! return_on_error {
         match $a {
             Ok(value) => value,
             Err(err) => {
-                log::error!("Returning due to error: {}", LeftError::from(err));
+                tracing::error!("Returning due to error: {}", LeftError::from(err));
                 return;
             }
         }
@@ -17,7 +17,7 @@ macro_rules! exit_on_error {
         match $a {
             Ok(value) => value,
             Err(err) => {
-                log::error!("Exiting due to error: {}", LeftError::from(err));
+                tracing::error!("Exiting due to error: {}", LeftError::from(err));
                 std::process::exit(1);
             }
         }

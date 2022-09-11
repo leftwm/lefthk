@@ -27,7 +27,7 @@ fn main() {
                 .help("Reload daemon to apply changes to config"),
         )
         .get_matches();
-    log::info!("lefthk booted!");
+    tracing::info!("lefthk booted!");
 
     if matches.occurrences_of("quit") == 1 {
         send_command("Kill");
@@ -43,7 +43,7 @@ fn main() {
                 Err(err) => match old_config {
                     Some(config) => config,
                     None => {
-                        log::error!("Unable to load new config due to error: {}", err);
+                        tracing::error!("Unable to load new config due to error: {}", err);
                         return;
                     }
                 },
@@ -59,8 +59,8 @@ fn main() {
             });
 
             match completed {
-                Ok(_) => log::info!("Completed"),
-                Err(err) => log::error!("Completed with error: {:?}", err),
+                Ok(_) => tracing::info!("Completed"),
+                Err(err) => tracing::error!("Completed with error: {:?}", err),
             }
             if kill_requested.load(Ordering::SeqCst) {
                 return;
