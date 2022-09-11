@@ -8,7 +8,7 @@ repository = "https://github.com/leftwm/lefthk"
 description = "A hotkey daemon for Adventurers"
 
 [dependencies]
-clap = "2.3.0"
+clap = {version = "3.2.20", features = ["cargo"]}
 lefthk-core = { path = "../lefthk-core", version = '0.1' }
 pretty_env_logger = "0.4.0"
 ron = "0.7"

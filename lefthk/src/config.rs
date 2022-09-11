@@ -132,7 +132,7 @@ impl lefthk_core::config::Config for Config {
 }
 
 pub fn load() -> Result<Config> {
-    let path = BaseDirectories::with_prefix("lefthk")?;
+    let path = BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME)?;
     fs::create_dir_all(&path.get_config_home())?;
     let file_name = path.place_config_file("config.ron")?;
     if Path::new(&file_name).exists() {
