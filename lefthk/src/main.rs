@@ -82,5 +82,4 @@ fn get_app() -> App<'static> {
                 .long(RELOAD_COMMAND)
                 .help("Reload daemon to apply changes to config"),
         )
-
 }
