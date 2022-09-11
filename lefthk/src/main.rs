@@ -36,7 +36,8 @@ fn main() {
     } else {
         pretty_env_logger::init();
         let mut old_config = None;
-        let path = errors::exit_on_error!(BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME));
+        let path =
+            errors::exit_on_error!(BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME));
         loop {
             let config = match config::load() {
                 Ok(config) => config,
