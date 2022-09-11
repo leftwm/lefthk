@@ -10,7 +10,6 @@ description = "A hotkey daemon for Adventurers"
 [dependencies]
 clap = {version = "3.2.20", features = ["cargo"]}
 lefthk-core = { path = "../lefthk-core", version = '0.1' }
-pretty_env_logger = "0.4.0"
 ron = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0.30"
@@ -19,6 +18,7 @@ xdg = "2.4.0"
 
 # logging
 tracing = "0.1.36"
+tracing-subscriber = {version = "0.3.15", features = ["env-filter"]}
 
 [dev-dependencies]
 tempfile = "3.2.0"
