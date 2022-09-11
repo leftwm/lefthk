@@ -11,27 +11,17 @@ pub mod config;
 pub mod errors;
 mod tests;
 
+const QUIT_COMMAND: &str = "quit";
+const RELOAD_COMMAND: &str = "reload";
+
 fn main() {
-    let matches = App::new("LeftHK Hot Key Daemon")
-        .about("a simple hotkey daemon for LeftWM")
-        .arg(
-            Arg::with_name("quit")
-                .short("q")
-                .long("quit")
-                .help("Quit a running daemon instance"),
-        )
-        .arg(
-            Arg::with_name("reload")
-                .short("r")
-                .long("reload")
-                .help("Reload daemon to apply changes to config"),
-        )
-        .get_matches();
+    let app = get_app();
+    let matches = app.get_matches();
     log::info!("lefthk booted!");
 
-    if matches.occurrences_of("quit") == 1 {
+    if matches.contains_id(QUIT_COMMAND) {
         send_command("Kill");
-    } else if matches.occurrences_of("reload") == 1 {
+    } else if matches.contains_id(RELOAD_COMMAND) {
         send_command("Reload");
     } else {
         pretty_env_logger::init();
@@ -77,4 +67,20 @@ fn send_command(command: &str) {
     let pipe_file = errors::exit_on_error!(path.place_runtime_file(pipe_name));
     let mut pipe = fs::OpenOptions::new().write(true).open(&pipe_file).unwrap();
     writeln!(pipe, "{}", command).unwrap();
+}
+
+fn get_app() -> App<'static> {
+    clap::command!()
+        .arg(
+            Arg::with_name(QUIT_COMMAND)
+                .short('q')
+                .long(QUIT_COMMAND)
+                .help("Quit a running daemon instance"),
+        )
+        .arg(
+            Arg::with_name(RELOAD_COMMAND)
+                .short('r')
+                .long(RELOAD_COMMAND)
+                .help("Reload daemon to apply changes to config"),
+        )
 }
