@@ -58,7 +58,7 @@ impl TryFrom<Keybind> for Vec<core_keybind> {
                     .filter_map(|kb| match TryFrom::try_from(kb.clone()) {
                         Ok(keybinds) => Some::<Vec<lefthk_core::config::Keybind>>(keybinds),
                         Err(err) => {
-                            log::error!("Invalid key binding: {}\n{:?}", err, kb);
+                            tracing::error!("Invalid key binding: {}\n{:?}", err, kb);
                             None
                         }
                     })
@@ -122,7 +122,7 @@ impl lefthk_core::config::Config for Config {
             .filter_map(|kb| match TryFrom::try_from(kb.clone()) {
                 Ok(keybinds) => Some::<Vec<lefthk_core::config::Keybind>>(keybinds),
                 Err(err) => {
-                    log::error!("Invalid key binding: {}\n{:?}", err, kb);
+                    tracing::error!("Invalid key binding: {}\n{:?}", err, kb);
                     None
                 }
             })

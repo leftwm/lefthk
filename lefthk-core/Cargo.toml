@@ -8,7 +8,6 @@ repository = "https://github.com/leftwm/lefthk"
 description = "A hotkey daemon for Adventurers"
 
 [dependencies]
-log = "0.4.14"
 mio = "0.8.0"
 nix = "0.23.0"
 signal-hook = "0.3.4"
@@ -16,6 +15,9 @@ thiserror = "1.0.30"
 tokio = { version = "1.14.0", features = ["fs", "io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
 x11-dl = "2.19.1"
 xdg = "2.4.0"
+
+# logging
+tracing = "0.1.36"
 
 [dev-dependencies]
 tempfile = "3.2.0"

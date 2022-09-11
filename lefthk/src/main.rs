@@ -7,6 +7,8 @@ use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use xdg::BaseDirectories;
 
+use tracing_subscriber::{filter::EnvFilter, filter::LevelFilter, fmt, layer::SubscriberExt};
+
 pub mod config;
 pub mod errors;
 mod tests;
@@ -15,16 +17,16 @@ const QUIT_COMMAND: &str = "quit";
 const RELOAD_COMMAND: &str = "reload";
 
 fn main() {
+    setup_logging();
     let app = get_app();
     let matches = app.get_matches();
-    log::info!("lefthk booted!");
+    tracing::info!("lefthk booted!");
 
     if matches.contains_id(QUIT_COMMAND) {
         send_command("Kill");
     } else if matches.contains_id(RELOAD_COMMAND) {
         send_command("Reload");
     } else {
-        pretty_env_logger::init();
         let mut old_config = None;
         let path =
             errors::exit_on_error!(BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME));
@@ -34,7 +36,7 @@ fn main() {
                 Err(err) => match old_config {
                     Some(config) => config,
                     None => {
-                        log::error!("Unable to load new config due to error: {}", err);
+                        tracing::error!("Unable to load new config due to error: {}", err);
                         return;
                     }
                 },
@@ -50,8 +52,8 @@ fn main() {
             });
 
             match completed {
-                Ok(_) => log::info!("Completed"),
-                Err(err) => log::error!("Completed with error: {:?}", err),
+                Ok(_) => tracing::info!("Completed"),
+                Err(err) => tracing::error!("Completed with error: {:?}", err),
             }
             if kill_requested.load(Ordering::SeqCst) {
                 return;
@@ -83,4 +85,17 @@ fn get_app() -> App<'static> {
                 .long(RELOAD_COMMAND)
                 .help("Reload daemon to apply changes to config"),
         )
+}
+
+fn setup_logging() {
+    let subscriber = fmt::Layer::new().with_writer(std::io::stdout);
+    let log_level = EnvFilter::builder()
+        .with_default_directive(LevelFilter::DEBUG.into())
+        .from_env_lossy();
+
+    let collector = tracing_subscriber::registry()
+        .with(log_level)
+        .with(subscriber);
+
+    tracing::subscriber::set_global_default(collector).expect("Couldn't setup logging");
 }

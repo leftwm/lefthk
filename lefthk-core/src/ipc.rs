@@ -72,7 +72,7 @@ async fn read_from_pipe(pipe_file: &Path, tx: &mpsc::UnboundedSender<Command>) -
         let cmd = match parse_command(&line) {
             Ok(cmd) => cmd,
             Err(err) => {
-                log::error!("An error occurred while parsing the command: {}", err);
+                tracing::error!("An error occurred while parsing the command: {}", err);
                 return None;
             }
         };
