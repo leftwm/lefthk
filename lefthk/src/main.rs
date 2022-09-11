@@ -36,7 +36,7 @@ fn main() {
     } else {
         pretty_env_logger::init();
         let mut old_config = None;
-        let path = errors::exit_on_error!(BaseDirectories::with_prefix("lefthk"));
+        let path = errors::exit_on_error!(BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME));
         loop {
             let config = match config::load() {
                 Ok(config) => config,
@@ -71,7 +71,7 @@ fn main() {
 }
 
 fn send_command(command: &str) {
-    let path = errors::exit_on_error!(BaseDirectories::with_prefix("lefthk"));
+    let path = errors::exit_on_error!(BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME));
     let pipe_name = Pipe::pipe_name();
     let pipe_file = errors::exit_on_error!(path.place_runtime_file(pipe_name));
     let mut pipe = fs::OpenOptions::new().write(true).open(&pipe_file).unwrap();
