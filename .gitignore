@@ -8,3 +8,5 @@ result
 .envrc
 
 sweep.timestamptarget
+
+.toggletasks.json
