@@ -7,7 +7,7 @@ use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use xdg::BaseDirectories;
 
-use tracing_subscriber::{fmt, layer::SubscriberExt, filter::EnvFilter, filter::LevelFilter};
+use tracing_subscriber::{filter::EnvFilter, filter::LevelFilter, fmt, layer::SubscriberExt};
 
 pub mod config;
 pub mod errors;
