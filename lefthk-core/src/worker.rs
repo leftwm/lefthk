@@ -54,7 +54,6 @@ impl Worker {
             tokio::select! {
                 _ = self.children.wait_readable() => {
                     self.children.reap();
-                    continue;
                 }
                 _ = self.xwrap.wait_readable() => {
                     let event_in_queue = self.xwrap.queue_len();
@@ -62,7 +61,6 @@ impl Worker {
                         let xlib_event = self.xwrap.get_next_event();
                         self.handle_event(&xlib_event);
                     }
-                    continue;
                 }
                 Some(command) = pipe.read_command() => {
                     match command {
@@ -70,7 +68,6 @@ impl Worker {
                         config::Command::Kill => self.kill_requested = true,
                         _ => (),
                     }
-                    continue;
                 }
             }
         }
