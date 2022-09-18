@@ -257,4 +257,41 @@ Config(
         println!("{:?}", conf.as_ref().err());
         assert!(conf.is_err());
     }
+
+    #[test]
+    fn parse_sub_keybind_config() {
+        let config = r#"#![enable(implicit_some)]
+Config(
+    default_modifier: ["Mod4", "Shift"],
+    keybinds: [
+        Keybind(
+            command: Chord([
+                Keybind(
+                    command: Execute("st -e htop"),
+                    modifier: ["Mod4"],
+                    key: Key("c"),
+                ),
+            ]),
+            modifier: ["Mod4"],
+            key: Key("c"),
+        ),
+    ]
+)"#;
+        let conf = Cfg::from_string(config.to_string());
+        println!("{:?}", conf.as_ref().err());
+        assert!(conf.is_ok());
+        let conf = conf.unwrap();
+        println!("{conf:?}");
+        assert_eq!(conf.default_modifier.len(), 2);
+        assert_eq!(
+            conf.default_modifier,
+            vec!["Mod4".to_string(), "Shift".to_string()]
+        );
+        let conf_mapped = conf.mapped_bindings();
+
+        // Verify default modifier implementation
+        let default_keybind = conf_mapped.first().unwrap();
+        assert_eq!(default_keybind.modifier.len(), 2);
+        assert_eq!(default_keybind.modifier, conf.default_modifier);
+    }
 }
