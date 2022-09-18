@@ -199,17 +199,7 @@ Config(
             key: Key("x"),
         ),
         Keybind(
-            command: Executes(["st -e htop", "st -e bpytop"]),
-            key: Keys(["x", "m"]),
-        ),
-        Keybind(
-            command: Chord([
-                Keybind(
-                    command: Execute("st -e htop"),
-                    modifier: ["Mod4"],
-                    key: Key("c"),
-                ),
-            ]),
+            command: Execute("st -e btm"),
             modifier: ["Mod4"],
             key: Key("c"),
         ),
@@ -226,10 +216,15 @@ Config(
             vec!["Mod4".to_string(), "Shift".to_string()]
         );
         let conf_mapped = conf.mapped_bindings();
-        let first_keybind = conf_mapped.get(0).unwrap();
-        assert_eq!(first_keybind.modifier.len(), 2);
-        let first_modifier = first_keybind.modifier.clone();
-        assert_eq!(first_modifier.len(), 2);
-        assert_eq!(first_modifier, conf.default_modifier);
+
+        // Verify default modifier implementation
+        let default_keybind = conf_mapped.first().unwrap();
+        assert_eq!(default_keybind.modifier.len(), 2);
+        assert_eq!(default_keybind.modifier, conf.default_modifier);
+
+        // Verify own implementation
+        let custom_keybind = conf_mapped.last().unwrap();
+        assert_eq!(custom_keybind.modifier.len(), 1);
+        assert_eq!(custom_keybind.modifier, vec!["Mod4".to_string()]);
     }
 }
