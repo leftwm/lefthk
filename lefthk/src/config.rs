@@ -184,7 +184,7 @@ fn propagate_exit_chord(chords: Vec<&mut Keybind>, exit_chord: Option<Keybind>) 
 
 #[cfg(test)]
 mod test {
-    use lefthk_core::config::Config;
+    use lefthk_core::config::{Command, Config, Keybind};
 
     use super::Config as Cfg;
 
@@ -206,10 +206,8 @@ Config(
     ]
 )"#;
         let conf = Cfg::from_string(config.to_string());
-        println!("{:?}", conf.as_ref().err());
         assert!(conf.is_ok());
         let conf = conf.unwrap();
-        println!("{conf:?}");
         assert_eq!(conf.default_modifier.len(), 2);
         assert_eq!(
             conf.default_modifier,
@@ -235,10 +233,8 @@ Config(
     keybinds: []
 )"#;
         let conf = Cfg::from_string(config.to_string());
-        println!("{:?}", conf.as_ref().err());
         assert!(conf.is_ok());
         let conf = conf.unwrap();
-        println!("{conf:?}");
         assert_eq!(conf.default_modifier.len(), 2);
         assert_eq!(
             conf.default_modifier,
@@ -254,7 +250,6 @@ Config(
     fn parse_none_config() {
         // Define empty string
         let conf = Cfg::from_string(String::new());
-        println!("{:?}", conf.as_ref().err());
         assert!(conf.is_err());
     }
 
@@ -275,6 +270,15 @@ Config(
             modifier: ["Mod4"],
             key: Key("c"),
         ),
+        Keybind(
+            command: Chord([
+                Keybind(
+                    command: Execute("st -e htop"),
+                    key: Key("c"),
+                ),
+            ]),
+            key: Key("c"),
+        ),
     ]
 )"#;
         let conf = Cfg::from_string(config.to_string());
@@ -290,8 +294,29 @@ Config(
         let conf_mapped = conf.mapped_bindings();
 
         // Verify default modifier implementation
-        let default_keybind = conf_mapped.first().unwrap();
+        let default_keybind = conf_mapped.last().unwrap();
         assert_eq!(default_keybind.modifier.len(), 2);
         assert_eq!(default_keybind.modifier, conf.default_modifier);
+        assert_eq!(
+            default_keybind.command,
+            Command::Chord(vec![Keybind {
+                command: Command::Execute("st -e htop".to_string()),
+                modifier: vec!["Mod4".to_string(), "Shift".to_string()],
+                key: "c".to_string(),
+            }])
+        );
+
+        // Verify custom modifier implementation
+        let custom_keybind = conf_mapped.first().unwrap();
+        assert_eq!(custom_keybind.modifier.len(), 1);
+        assert_eq!(custom_keybind.modifier, vec!["Mod4".to_string()]);
+        assert_eq!(
+            custom_keybind.command,
+            Command::Chord(vec![Keybind {
+                command: Command::Execute("st -e htop".to_string()),
+                modifier: vec!["Mod4".to_string()],
+                key: "c".to_string(),
+            }])
+        );
     }
 }
