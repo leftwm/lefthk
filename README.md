@@ -15,7 +15,17 @@ Config(
             key: Key("x"),
         ),
         Keybind(
-            command: Execute("st -e btm"),
+            command: Executes(["st -e htop", "st -e bpytop"]),
+            key: Keys(["x", "m"]),
+        ),
+        Keybind(
+            command: Chord([
+                Keybind(
+                    command: Execute("st -e htop"),
+                    modifier: ["Mod4"],
+                    key: Key("c"),
+                ),
+            ]),
             modifier: ["Mod4"],
             key: Key("c"),
         ),
