@@ -282,10 +282,8 @@ Config(
     ]
 )"#;
         let conf = Cfg::from_string(config.to_string());
-        println!("{:?}", conf.as_ref().err());
         assert!(conf.is_ok());
         let conf = conf.unwrap();
-        println!("{conf:?}");
         assert_eq!(conf.default_modifier.len(), 2);
         assert_eq!(
             conf.default_modifier,
