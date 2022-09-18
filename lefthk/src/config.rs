@@ -130,12 +130,9 @@ impl lefthk_core::config::Config for Config {
     }
 }
 
-pub fn load() -> Result<Config> {
-    let path = BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME)?;
-    fs::create_dir_all(&path.get_config_home())?;
-    let file_name = path.place_config_file("config.ron")?;
-    if Path::new(&file_name).exists() {
-        let contents = fs::read_to_string(file_name)?;
+impl Config {
+    pub fn from_string(contents: String) -> Result<Self> {
+        println!("{contents}");
         let mut config: Config = ron::from_str(&contents)?;
         let global_exit_chord = config
             .keybinds
@@ -150,6 +147,16 @@ pub fn load() -> Result<Config> {
         propagate_exit_chord(chords, global_exit_chord);
 
         return Ok(config);
+    }
+}
+
+pub fn load() -> Result<Config> {
+    let path = BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME)?;
+    fs::create_dir_all(&path.get_config_home())?;
+    let file_name = path.place_config_file("config.ron")?;
+    if Path::new(&file_name).exists() {
+        let contents = fs::read_to_string(file_name)?;
+        return Ok(Config::from_string(contents)?);
     }
     Err(LeftError::NoConfigFound)
 }
@@ -172,5 +179,57 @@ fn propagate_exit_chord(chords: Vec<&mut Keybind>, exit_chord: Option<Keybind>) 
                 .collect();
             propagate_exit_chord(sub_chords, parent_exit_chord);
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use lefthk_core::config::Config;
+
+    use super::Config as Cfg;
+
+    #[test]
+    fn parse_config() {
+        let config = r#"#![enable(implicit_some)]
+Config(
+    default_modifier: ["Mod4", "Shift"],
+    keybinds: [
+        Keybind(
+            command: Execute("st -e htop"),
+            key: Key("x"),
+        ),
+        Keybind(
+            command: Executes(["st -e htop", "st -e bpytop"]),
+            key: Keys(["x", "m"]),
+        ),
+        Keybind(
+            command: Chord([
+                Keybind(
+                    command: Execute("st -e htop"),
+                    modifier: ["Mod4"],
+                    key: Key("c"),
+                ),
+            ]),
+            modifier: ["Mod4"],
+            key: Key("c"),
+        ),
+    ]
+)"#;
+        let conf = Cfg::from_string(config.to_string());
+        println!("{:?}", conf.as_ref().err());
+        assert!(conf.is_ok());
+        let conf = conf.unwrap();
+        println!("{conf:?}");
+        assert_eq!(conf.default_modifier.len(), 2);
+        assert_eq!(
+            conf.default_modifier,
+            vec!["Mod4".to_string(), "Shift".to_string()]
+        );
+        let conf_mapped = conf.mapped_bindings();
+        let first_keybind = conf_mapped.get(0).unwrap();
+        assert_eq!(first_keybind.modifier.len(), 2);
+        let first_modifier = first_keybind.modifier.clone();
+        assert_eq!(first_modifier.len(), 2);
+        assert_eq!(first_modifier, conf.default_modifier);
     }
 }
