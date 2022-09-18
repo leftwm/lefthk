@@ -32,7 +32,7 @@ impl Children {
         let (guard, _task_guard) = oneshot::channel();
         let task_notify = Arc::new(Notify::new());
         let notify = task_notify.clone();
-        let mut signals = Signals::new(&[signal::SIGCHLD]).expect("Couldn't setup signals.");
+        let mut signals = Signals::new([signal::SIGCHLD]).expect("Couldn't setup signals.");
         tokio::task::spawn_blocking(move || loop {
             if guard.is_closed() {
                 return;
