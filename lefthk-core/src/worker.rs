@@ -141,7 +141,7 @@ impl Worker {
     pub fn exec(&mut self, command: &str) -> Error {
         let child = Command::new("sh")
             .arg("-c")
-            .arg(&command)
+            .arg(command)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .spawn()?;
