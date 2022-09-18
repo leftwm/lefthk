@@ -7,15 +7,14 @@ The configuration file should be created in ~/.config/lefthk/ and called config.
 Example config:
 ```ron
 Config(
+    default_modifier: ["Mod4", "Shift"],
     keybinds: [
         Keybind(
             command: Execute("st -e htop"),
-            modifier: ["Mod4", "Shift"],
             key: Key("x"),
         ),
         Keybind(
             command: Executes(["st -e htop", "st -e bpytop"]),
-            modifier: ["Mod4", "Shift"],
             key: Keys(["x", "m"]),
         ),
         Keybind(
