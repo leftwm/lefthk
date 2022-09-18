@@ -227,4 +227,34 @@ Config(
         assert_eq!(custom_keybind.modifier.len(), 1);
         assert_eq!(custom_keybind.modifier, vec!["Mod4".to_string()]);
     }
+
+    #[test]
+    fn parse_empty_config() {
+        let config = r#"Config(
+    default_modifier: ["Mod4", "Shift"],
+    keybinds: []
+)"#;
+        let conf = Cfg::from_string(config.to_string());
+        println!("{:?}", conf.as_ref().err());
+        assert!(conf.is_ok());
+        let conf = conf.unwrap();
+        println!("{conf:?}");
+        assert_eq!(conf.default_modifier.len(), 2);
+        assert_eq!(
+            conf.default_modifier,
+            vec!["Mod4".to_string(), "Shift".to_string()]
+        );
+        let conf_mapped = conf.mapped_bindings();
+
+        // Verify implementation
+        assert_eq!(conf_mapped.len(), 0);
+    }
+
+    #[test]
+    fn parse_none_config() {
+        // Define empty string
+        let conf = Cfg::from_string(String::new());
+        println!("{:?}", conf.as_ref().err());
+        assert!(conf.is_err());
+    }
 }
