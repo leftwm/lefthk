@@ -11,7 +11,7 @@ use tokio::{
 
 pub struct Pipe {
     pipe_file: PathBuf,
-    rx: mpsc::UnboundedReceiver<Command>,
+    rx: mpsc::UnboundedReceiver<Box<dyn Command>>,
 }
 
 impl Drop for Pipe {
