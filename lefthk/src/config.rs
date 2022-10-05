@@ -99,7 +99,10 @@ fn try_from(kb: Keybind, default_modifier: Vec<String>) -> Result<Vec<core_keybi
         .iter()
         .map(|(c, k)| core_keybind {
             command: c.clone(),
-            modifier: kb.modifier.clone().unwrap_or(default_modifier.clone()),
+            modifier: kb
+                .modifier
+                .clone()
+                .unwrap_or_else(|| default_modifier.clone()),
             key: k.to_owned(),
         })
         .collect();
@@ -146,7 +149,7 @@ impl Config {
             .collect();
         propagate_exit_chord(chords, global_exit_chord);
 
-        return Ok(config);
+        Ok(config)
     }
 }
 
@@ -156,7 +159,7 @@ pub fn load() -> Result<Config> {
     let file_name = path.place_config_file("config.ron")?;
     if Path::new(&file_name).exists() {
         let contents = fs::read_to_string(file_name)?;
-        return Ok(Config::from_string(contents)?);
+        Config::from_string(contents)?;
     }
     Err(LeftError::NoConfigFound)
 }
