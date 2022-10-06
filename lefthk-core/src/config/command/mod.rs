@@ -4,21 +4,25 @@ mod exit_chord;
 mod kill;
 mod reload;
 
-use std::convert::TryFrom;
+pub mod error;
 
-use crate::errors::LeftError;
+use serde::{Serialize, Deserialize};
 
-pub use self::{chord::Chord, execute::Execute, exit_chord::ExitChord, reload::Reload};
+use crate::worker::Worker;
 
-pub trait Command<'a>: ToString + Default + TryFrom<&'a str> {}
+pub use self::{chord::Chord, execute::Execute, exit_chord::ExitChord, kill::Kill, reload::Reload};
 
-pub static COMMANDS: Vec<Box<dyn Command<Error = LeftError>>> = Vec::new();
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GeneralCommand(String);
 
-#[macro_export]
-macro_rules! register_command {
-    ($($x:expr),*) =>  {
-        {
-            COMMANDS.push($x::default());
-        }
-    }
+pub trait Command {
+    fn generalize(&self) -> GeneralCommand;
+
+    fn from_generalized(generalized: GeneralCommand) -> Option<Box<Self>>;
+
+    fn execute(&self, worker: &mut Worker);
+}
+
+pub fn from_general<'a>(general: GeneralCommand) -> impl Command {
+    todo!()
 }

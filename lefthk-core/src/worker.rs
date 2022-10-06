@@ -1,10 +1,10 @@
 use crate::child::Children;
-use crate::config::{self, Keybind};
+use crate::config::{self, Keybind, Command};
 use crate::errors::{self, Error, LeftError};
 use crate::ipc::Pipe;
 use crate::xkeysym_lookup;
 use crate::xwrap::XWrap;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use x11_dl::xlib;
 use xdg::BaseDirectories;
 
@@ -63,11 +63,12 @@ impl Worker {
                     }
                 }
                 Some(command) = pipe.read_command() => {
-                    match command {
-                        config::Command::Reload => self.reload_requested = true,
-                        config::Command::Kill => self.kill_requested = true,
-                        _ => (),
-                    }
+                    command.execute(&mut self);
+                    // match command {
+                    //     config::Command::Reload => self.reload_requested = true,
+                    //     config::Command::Kill => self.kill_requested = true,
+                    //     _ => (),
+                    // }
                 }
             }
         }
@@ -86,25 +87,26 @@ impl Worker {
         let key = self.xwrap.keycode_to_keysym(event.keycode);
         let mask = xkeysym_lookup::clean_mask(event.state);
         if let Some(keybind) = self.get_keybind((mask, key)) {
-            match keybind.command {
-                config::Command::Chord(children) => {
-                    self.chord_keybinds = Some(children);
-                    if let Some(keybinds) = &self.chord_keybinds {
-                        self.xwrap.grab_keys(keybinds);
-                    }
-                }
-                config::Command::Execute(value) => {
-                    self.chord_elapsed = self.chord_keybinds.is_some();
-                    return self.exec(&value);
-                }
-                config::Command::ExitChord => {
-                    if self.chord_keybinds.is_some() {
-                        self.chord_elapsed = true;
-                    }
-                }
-                config::Command::Reload => self.reload_requested = true,
-                config::Command::Kill => self.kill_requested = true,
-            }
+            // match keybind.command {
+            //     config::Command::Chord(children) => {
+            //         self.chord_keybinds = Some(children);
+            //         if let Some(keybinds) = &self.chord_keybinds {
+            //             self.xwrap.grab_keys(keybinds);
+            //         }
+            //     }
+            //     config::Command::Execute(value) => {
+            //         self.chord_elapsed = self.chord_keybinds.is_some();
+            //         return self.exec(&value);
+            //     }
+            //     config::Command::ExitChord => {
+            //         if self.chord_keybinds.is_some() {
+            //             self.chord_elapsed = true;
+            //         }
+            //     }
+            //     config::Command::Reload => self.reload_requested = true,
+            //     config::Command::Kill => self.kill_requested = true,
+            // }
+            todo!();
         } else {
             return Err(LeftError::CommandNotFound);
         }
@@ -139,7 +141,7 @@ impl Worker {
     /// Sends command for execution
     /// Assumes STDIN/STDOUT unwanted.
     pub fn exec(&mut self, command: &str) -> Error {
-        let child = Command::new("sh")
+        let child = std::process::Command::new("sh")
             .arg("-c")
             .arg(&command)
             .stdin(Stdio::null())

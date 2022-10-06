@@ -24,6 +24,8 @@ macro_rules! exit_on_error {
 pub(crate) use exit_on_error;
 pub(crate) use log_on_error;
 
+use crate::config::command::error::CommandError;
+
 pub type Result<T> = std::result::Result<T, LeftError>;
 pub type Error = std::result::Result<(), LeftError>;
 
@@ -38,6 +40,8 @@ pub enum LeftError {
     #[error("XDG error: {0}.")]
     XdgBaseDirError(#[from] xdg::BaseDirectoriesError),
 
+    #[error("Command Error: {0}.")]
+    Command(#[from] CommandError),
     #[error("No command found for keybind.")]
     CommandNotFound,
     #[error("No key found for keybind.")]

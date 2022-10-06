@@ -1,7 +1,5 @@
-use crate::{
-    config::Command,
-    errors::{LeftError, Result},
-};
+use crate::config::{command::GeneralCommand, Command};
+use crate::errors::Result;
 use std::path::{Path, PathBuf};
 use tokio::{
     fs,
@@ -11,7 +9,7 @@ use tokio::{
 
 pub struct Pipe {
     pipe_file: PathBuf,
-    rx: mpsc::UnboundedReceiver<Box<dyn Command>>,
+    rx: mpsc::UnboundedReceiver<GeneralCommand>,
 }
 
 impl Drop for Pipe {
@@ -59,12 +57,13 @@ impl Pipe {
         PathBuf::from(format!("command-{}.pipe", display))
     }
 
-    pub async fn read_command(&mut self) -> Option<Command> {
-        self.rx.recv().await
+    pub async fn read_command(&mut self) -> Option<impl Command> {
+        self.rx.recv().await;
+        todo!()
     }
 }
 
-async fn read_from_pipe(pipe_file: &Path, tx: &mpsc::UnboundedSender<Command>) -> Option<()> {
+async fn read_from_pipe<'a>(pipe_file: &Path, tx: &mpsc::UnboundedSender<GeneralCommand>) -> Option<()> {
     let file = fs::File::open(pipe_file).await.ok()?;
     let mut lines = BufReader::new(file).lines();
 
@@ -80,12 +79,4 @@ async fn read_from_pipe(pipe_file: &Path, tx: &mpsc::UnboundedSender<Command>) -
     }
 
     Some(())
-}
-
-fn parse_command(string: &str) -> Result<Command> {
-    match string {
-        "Reload" => Ok(Command::Reload),
-        "Kill" => Ok(Command::Kill),
-        _ => Err(LeftError::CommandNotFound),
-    }
 }
