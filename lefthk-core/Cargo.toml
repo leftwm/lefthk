@@ -17,6 +17,7 @@ x11-dl = "2.19.1"
 xdg = "2.4.0"
 ron = "0.8.0"
 serde = { version = "1.0.145", features= ["derive"]}
+inventory = "0.3.2"
 
 # logging
 tracing = "0.1.36"

@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::worker::Worker;
+use crate::{worker::Worker, errors::Error};
 
-use super::{Command, GeneralCommand};
+use super::{Command, NormalizedCommand};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct ExitChord;
@@ -14,15 +14,19 @@ impl ExitChord {
 }
 
 impl Command for ExitChord {
-    fn execute(&self, worker: &mut Worker) {
-        todo!()
+    fn execute(&self, worker: &mut Worker) -> Error {
+        if worker.chord_ctx.keybinds.is_some() {
+            worker.chord_ctx.elapsed = true;
+        }
+
+        Ok(())
     }
 
-    fn generalize(&self) -> GeneralCommand {
-        GeneralCommand(ron::to_string(self).unwrap())
+    fn normalize(&self) -> NormalizedCommand {
+        NormalizedCommand(ron::to_string(self).unwrap())
     }
 
-    fn from_generalized(generalized: GeneralCommand) -> Option<Box<Self>> {
+    fn denormalize(generalized: NormalizedCommand) -> Option<Box<Self>> {
         ron::from_str(&generalized.0).ok()
     }
 }

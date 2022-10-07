@@ -4,25 +4,39 @@ mod exit_chord;
 mod kill;
 mod reload;
 
+pub mod normalized_command;
 pub mod error;
 
-use serde::{Serialize, Deserialize};
+use std::hash::Hash;
 
+use crate::errors::Error;
 use crate::worker::Worker;
 
+pub use self::{error::CommandError, normalized_command::NormalizedCommand};
 pub use self::{chord::Chord, execute::Execute, exit_chord::ExitChord, kill::Kill, reload::Reload};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct GeneralCommand(String);
+//inventory::collect!(dyn Fn(NormalizedCommand) -> Option<Box<dyn Command>>);
+
+pub type CommandId = u32;
 
 pub trait Command {
-    fn generalize(&self) -> GeneralCommand;
+    fn normalize(&self) -> NormalizedCommand;
 
-    fn from_generalized(generalized: GeneralCommand) -> Option<Box<Self>>;
+    fn denormalize(generalized: NormalizedCommand) -> Option<Box<Self>>
+    where
+        Self: Sized;
 
-    fn execute(&self, worker: &mut Worker);
+    fn execute(&self, worker: &mut Worker) -> Error;
+
+    fn get_id(&self) -> CommandId;
 }
 
-pub fn from_general<'a>(general: GeneralCommand) -> impl Command {
-    todo!()
+pub fn denormalize<'a>(general: NormalizedCommand) -> Result<Box<dyn Command>, CommandError> {
+    for command in inventory::iter::<Box<dyn Command>> {
+        if let Some(matching_command) = command.from_general(general) {
+            return Ok(matching_command);
+        }
+    }
+
+    Err(CommandError::UnmatchingCommand)
 }

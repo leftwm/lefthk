@@ -1,4 +1,5 @@
-use crate::config::{command::GeneralCommand, Command};
+use crate::config::command::{self, NormalizedCommand};
+use crate::config::{Command};
 use crate::errors::Result;
 use std::path::{Path, PathBuf};
 use tokio::{
@@ -9,7 +10,7 @@ use tokio::{
 
 pub struct Pipe {
     pipe_file: PathBuf,
-    rx: mpsc::UnboundedReceiver<GeneralCommand>,
+    rx: mpsc::UnboundedReceiver<NormalizedCommand>,
 }
 
 impl Drop for Pipe {
@@ -57,26 +58,28 @@ impl Pipe {
         PathBuf::from(format!("command-{}.pipe", display))
     }
 
-    pub async fn read_command(&mut self) -> Option<impl Command> {
-        self.rx.recv().await;
-        todo!()
+    pub async fn read_command(&mut self) -> Option<Box<dyn Command>> {
+        if let Some(content) = self.rx.recv().await {
+            if let Ok(normalized_command) = NormalizedCommand::try_from(content) {
+                return command::denormalize(normalized_command).ok();
+            }
+        }
+        None
     }
 }
 
-async fn read_from_pipe<'a>(pipe_file: &Path, tx: &mpsc::UnboundedSender<GeneralCommand>) -> Option<()> {
-    let file = fs::File::open(pipe_file).await.ok()?;
-    let mut lines = BufReader::new(file).lines();
+async fn read_from_pipe<'a>(pipe_file: &Path, tx: &mpsc::UnboundedSender<NormalizedCommand>) {
+    if let Ok(file) = fs::File::open(pipe_file).await {
+        let mut lines = BufReader::new(file).lines();
 
-    while let Some(line) = lines.next_line().await.ok()? {
-        let cmd = match parse_command(&line) {
-            Ok(cmd) => cmd,
-            Err(err) => {
-                tracing::error!("An error occurred while parsing the command: {}", err);
-                return None;
+        while let Ok(line) = lines.next_line().await {
+            if let Some(content) = line {
+                if let Ok(normalized_command) = NormalizedCommand::try_from(content) {
+                    if let Ok(_) = command::denormalize(normalized_command.clone()) {
+                        tx.send(normalized_command);
+                    }
+                }
             }
-        };
-        tx.send(cmd).ok()?;
+        }
     }
-
-    Some(())
 }

@@ -1,8 +1,10 @@
+use std::process::Stdio;
+
 use serde::{Serialize, Deserialize};
 
-use crate::worker::Worker;
+use crate::{worker::Worker, errors::Error};
 
-use super::{Command, GeneralCommand};
+use super::{Command, NormalizedCommand};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Execute(String);
@@ -14,15 +16,25 @@ impl Execute {
 }
 
 impl Command for Execute {
-    fn execute(&self, worker: &mut Worker) {
-        todo!()
+    fn execute(&self, worker: &mut Worker) -> Error {
+        worker.chord_ctx.elapsed = worker.chord_ctx.keybinds.is_some();
+        let child = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(&self.0)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .spawn()?;
+
+        worker.children.insert(child);
+
+        Ok(())
     }
 
-    fn generalize(&self) -> GeneralCommand {
-        GeneralCommand(ron::to_string(self).unwrap())
+    fn normalize(&self) -> NormalizedCommand {
+        NormalizedCommand(ron::to_string(self).unwrap())
     }
 
-    fn from_generalized(generalized: GeneralCommand) -> Option<Box<Self>> {
+    fn denormalize(generalized: NormalizedCommand) -> Option<Box<Self>> {
         ron::from_str(&generalized.0).ok()
     }
 }
