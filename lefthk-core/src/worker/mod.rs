@@ -10,8 +10,6 @@ use crate::xwrap::XWrap;
 use x11_dl::xlib;
 use xdg::BaseDirectories;
 
-use self::context::Context;
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Status {
     Reload,
@@ -92,7 +90,7 @@ impl Worker {
         let mask = xkeysym_lookup::clean_mask(event.state);
         if let Some(keybind) = self.get_keybind((mask, key)) {
             if let Ok(command) = command::denormalize(keybind.command) {
-                return command.execute(&mut self);
+                return command.execute(self);
             }
         } else {
             return Err(LeftError::CommandNotFound);

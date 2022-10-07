@@ -2,6 +2,7 @@ use crate::errors::LeftError;
 use clap::{App, Arg};
 use lefthk_core::config::{Command, command};
 use lefthk_core::ipc::Pipe;
+use lefthk_core::worker::Status;
 use lefthk_core::{config::Config, worker::Worker};
 use std::fs;
 use std::io::Write;
@@ -47,9 +48,9 @@ fn main() {
                 let rt = errors::return_on_error!(tokio::runtime::Runtime::new());
                 let _rt_guard = rt.enter();
 
-                let kill =
+                let status =
                     rt.block_on(Worker::new(config.mapped_bindings(), path.clone()).event_loop());
-                kill_requested.store(kill, Ordering::SeqCst);
+                kill_requested.store(status == Status::Kill, Ordering::SeqCst);
             });
 
             match completed {

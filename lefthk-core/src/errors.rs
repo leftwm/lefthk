@@ -24,7 +24,7 @@ macro_rules! exit_on_error {
 pub(crate) use exit_on_error;
 pub(crate) use log_on_error;
 
-use crate::config::command::error::CommandError;
+use crate::config::command::utils::error::CommandError;
 
 pub type Result<T> = std::result::Result<T, LeftError>;
 pub type Error = std::result::Result<(), LeftError>;

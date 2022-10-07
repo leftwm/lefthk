@@ -2,9 +2,11 @@ use std::process::Stdio;
 
 use serde::{Serialize, Deserialize};
 
-use crate::{worker::Worker, errors::Error};
+use crate::{worker::Worker, errors::Error, config::command::utils::denormalize_function::DenormalizeCommandFunction};
 
 use super::{Command, NormalizedCommand};
+
+inventory::submit! {DenormalizeCommandFunction::new::<Execute>()}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Execute(String);
@@ -34,7 +36,7 @@ impl Command for Execute {
         NormalizedCommand(ron::to_string(self).unwrap())
     }
 
-    fn denormalize(generalized: NormalizedCommand) -> Option<Box<Self>> {
+    fn denormalize(generalized: &NormalizedCommand) -> Option<Box<Self>> {
         ron::from_str(&generalized.0).ok()
     }
 }

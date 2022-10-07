@@ -1,5 +1,6 @@
-use crate::config::command::{self, NormalizedCommand};
-use crate::config::{Command};
+use crate::config::command;
+use crate::config::Command;
+use crate::config::command::utils::normalized_command::NormalizedCommand;
 use crate::errors::Result;
 use std::path::{Path, PathBuf};
 use tokio::{

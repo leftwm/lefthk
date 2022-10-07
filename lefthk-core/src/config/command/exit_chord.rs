@@ -1,10 +1,15 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{worker::Worker, errors::Error};
+use crate::{
+    config::command::utils::denormalize_function::DenormalizeCommandFunction, errors::Error,
+    worker::Worker,
+};
 
 use super::{Command, NormalizedCommand};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+inventory::submit! {DenormalizeCommandFunction::new::<ExitChord>()}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Default)]
 pub struct ExitChord;
 
 impl ExitChord {
@@ -26,7 +31,7 @@ impl Command for ExitChord {
         NormalizedCommand(ron::to_string(self).unwrap())
     }
 
-    fn denormalize(generalized: NormalizedCommand) -> Option<Box<Self>> {
+    fn denormalize(generalized: &NormalizedCommand) -> Option<Box<Self>> {
         ron::from_str(&generalized.0).ok()
     }
 }

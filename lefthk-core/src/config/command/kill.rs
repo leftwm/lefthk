@@ -1,10 +1,16 @@
 use std::hash::Hash;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use crate::{worker::{Worker, self}, errors::Error};
+use crate::{
+    config::command::utils::denormalize_function::DenormalizeCommandFunction,
+    errors::Error,
+    worker::{self, Worker},
+};
 
 use super::{Command, NormalizedCommand};
+
+inventory::submit! {DenormalizeCommandFunction::new::<Kill>()}
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize, Deserialize)]
 pub struct Kill;
@@ -25,7 +31,7 @@ impl Command for Kill {
         NormalizedCommand(ron::to_string(self).unwrap())
     }
 
-    fn denormalize(generalized: NormalizedCommand) -> Option<Box<Self>> {
+    fn denormalize(generalized: &NormalizedCommand) -> Option<Box<Self>> {
         ron::from_str(&generalized.0).ok()
     }
 }
