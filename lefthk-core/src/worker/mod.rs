@@ -1,15 +1,12 @@
 pub mod context;
 
-use std::collections::HashMap;
 
 use crate::child::Children;
-use crate::config::command::CommandId;
 use crate::config::{Keybind, command};
 use crate::errors::{self, Error, LeftError};
 use crate::ipc::Pipe;
 use crate::xkeysym_lookup;
 use crate::xwrap::XWrap;
-use command::Command;
 use x11_dl::xlib;
 use xdg::BaseDirectories;
 
@@ -23,57 +20,37 @@ pub enum Status {
 }
 
 pub struct Worker {
-    pub keybinds: Vec<Keybind>,
-    pub base_directory: BaseDirectories,
+    keybinds: Vec<Keybind>,
+    base_directory: BaseDirectories,
+
     pub xwrap: XWrap,
     pub children: Children,
     pub status: Status,
 
-    pub ctxs: HashMap<CommandId, Box<dyn Context>>,
-
-    pub reload_ctx: context::Reload,
-    pub kill_ctx: context::Kill,
+    /// "Chord Context": Holds the relevant data for chording
     pub chord_ctx: context::Chord,
 }
 
 impl Worker {
     pub fn new(keybinds: Vec<Keybind>, base_directory: BaseDirectories) -> Self {
-        let ctxs = vec![
-        ];
         Self {
             status: Status::Continue,
             keybinds,
             base_directory,
             xwrap: XWrap::new(),
-            children: Default::default(),
-            reload_ctx: context::Reload::new(),
-            kill_ctx: context::Kill::new(),
+            children: Children::default(),
             chord_ctx: context::Chord::new(),
         }
     }
 
     pub async fn event_loop(mut self) -> Status {
         self.xwrap.grab_keys(&self.keybinds);
-        let pipe_name = Pipe::pipe_name();
-        let pipe_file = errors::exit_on_error!(self.base_directory.place_runtime_file(pipe_name));
-        let mut pipe = errors::exit_on_error!(Pipe::new(pipe_file).await);
+        let mut pipe = self.get_pipe().await;
 
         while self.status == Status::Continue {
             self.xwrap.flush();
 
-            for context in self.ctxs {
-                context.evaluate(&mut self);
-            }
-
-            // if self.kill_ctx.requested || self.reload_ctx.requested {
-            //     return self.kill_ctx.requested;
-            // }
-            //
-            // if self.chord_elapsed {
-            //     self.xwrap.grab_keys(&self.keybinds);
-            //     self.chord_keybinds = None;
-            //     self.chord_elapsed = false;
-            // }
+            self.evaluate_chord();
 
             tokio::select! {
                 _ = self.children.wait_readable() => {
@@ -89,22 +66,28 @@ impl Worker {
                 Some(command) = pipe.read_command() => {
                     command.execute(&mut self);
                 }
-            }
+            };
         }
 
         self.status
     }
 
+    async fn get_pipe(&self) -> Pipe {
+        let pipe_name = Pipe::pipe_name();
+        let pipe_file = errors::exit_on_error!(self.base_directory.place_runtime_file(pipe_name));
+        errors::exit_on_error!(Pipe::new(pipe_file).await)
+    }
+
     fn handle_event(&mut self, xlib_event: &xlib::XEvent) {
         let error = match xlib_event.get_type() {
-            xlib::KeyPress => self.key_press(&xlib::XKeyEvent::from(xlib_event)),
-            xlib::MappingNotify => self.mapping_notify(&mut xlib::XMappingEvent::from(xlib_event)),
+            xlib::KeyPress => self.handle_key_press(&xlib::XKeyEvent::from(xlib_event)),
+            xlib::MappingNotify => self.handle_mapping_notify(&mut xlib::XMappingEvent::from(xlib_event)),
             _ => return,
         };
         errors::log_on_error!(error);
     }
 
-    fn key_press(&mut self, event: &xlib::XKeyEvent) -> Error {
+    fn handle_key_press(&mut self, event: &xlib::XKeyEvent) -> Error {
         let key = self.xwrap.keycode_to_keysym(event.keycode);
         let mask = xkeysym_lookup::clean_mask(event.state);
         if let Some(keybind) = self.get_keybind((mask, key)) {
@@ -135,7 +118,7 @@ impl Worker {
             .cloned()
     }
 
-    fn mapping_notify(&self, event: &mut xlib::XMappingEvent) -> Error {
+    fn handle_mapping_notify(&self, event: &mut xlib::XMappingEvent) -> Error {
         if event.request == xlib::MappingModifier || event.request == xlib::MappingKeyboard {
             return self.xwrap.refresh_keyboard(event);
         }

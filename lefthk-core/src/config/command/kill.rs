@@ -2,7 +2,7 @@ use std::hash::Hash;
 
 use serde::{Serialize, Deserialize};
 
-use crate::{worker::Worker, errors::Error};
+use crate::{worker::{Worker, self}, errors::Error};
 
 use super::{Command, NormalizedCommand};
 
@@ -17,7 +17,7 @@ impl Kill {
 
 impl Command for Kill {
     fn execute(&self, worker: &mut Worker) -> Error {
-        worker.kill_ctx.requested = true;
+        worker.status = worker::Status::Kill;
         Ok(())
     }
 

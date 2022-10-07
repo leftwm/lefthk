@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::{worker::Worker, errors::Error};
+use crate::{worker::{Worker, self}, errors::Error};
 
 use super::{Command, NormalizedCommand};
 
@@ -15,7 +15,7 @@ impl Reload {
 
 impl Command for Reload {
     fn execute(&self, worker: &mut Worker) -> Error {
-        worker.reload_ctx.requested = true;
+        worker.status = worker::Status::Reload;
         Ok(())
     }
 

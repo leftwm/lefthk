@@ -7,8 +7,6 @@ mod reload;
 pub mod normalized_command;
 pub mod error;
 
-use std::hash::Hash;
-
 use crate::errors::Error;
 use crate::worker::Worker;
 
@@ -27,8 +25,6 @@ pub trait Command {
         Self: Sized;
 
     fn execute(&self, worker: &mut Worker) -> Error;
-
-    fn get_id(&self) -> CommandId;
 }
 
 pub fn denormalize<'a>(general: NormalizedCommand) -> Result<Box<dyn Command>, CommandError> {
