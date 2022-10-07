@@ -1,6 +1,5 @@
 use crate::errors::{LeftError, Result};
-use lefthk_core::config::Command as core_command;
-use lefthk_core::config::Keybind as core_keybind;
+use lefthk_core::config::command;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fs, path::Path};
 use xdg::BaseDirectories;
@@ -46,11 +45,11 @@ pub struct Keybind {
     pub key: Key,
 }
 
-impl TryFrom<Keybind> for Vec<core_keybind> {
+impl TryFrom<Keybind> for Vec<Keybind> {
     type Error = LeftError;
 
     fn try_from(kb: Keybind) -> Result<Self> {
-        let command_key_pairs: Vec<(core_command, String)> = match kb.command {
+        let command_key_pairs: Vec<(Command, String)> = match kb.command {
             Command::Chord(children) if !children.is_empty() => {
                 let key = get_key!(kb.key);
                 let children = children
@@ -65,12 +64,12 @@ impl TryFrom<Keybind> for Vec<core_keybind> {
                     .flatten()
                     .collect();
 
-                vec![(core_command::Chord(children), key)]
+                vec![(Command::Chord(children), key)]
             }
             Command::Chord(_) => return Err(LeftError::ChildrenNotFound),
             Command::Execute(value) if !value.is_empty() => {
                 let keys = get_key!(kb.key);
-                vec![(core_command::Execute(value), keys)]
+                vec![(Command::Execute(value), keys)]
             }
             Command::Execute(_) => return Err(LeftError::ValueNotFound),
             Command::Executes(values) if !values.is_empty() => {
@@ -81,26 +80,26 @@ impl TryFrom<Keybind> for Vec<core_keybind> {
                 values
                     .iter()
                     .enumerate()
-                    .map(|(i, v)| (core_command::Execute(v.to_owned()), keys[i].clone()))
+                    .map(|(i, v)| (Command::Execute(v.to_owned()), keys[i].clone()))
                     .collect()
             }
             Command::Executes(_) => return Err(LeftError::ValuesNotFound),
             Command::ExitChord => {
                 let keys = get_key!(kb.key);
-                vec![(core_command::ExitChord, keys)]
+                vec![(Command::ExitChord, keys)]
             }
             Command::Reload => {
                 let keys = get_key!(kb.key);
-                vec![(core_command::Reload, keys)]
+                vec![(Command::Reload, keys)]
             }
             Command::Kill => {
                 let keys = get_key!(kb.key);
-                vec![(core_command::Kill, keys)]
+                vec![(Command::Kill, keys)]
             }
         };
         let keybinds = command_key_pairs
             .iter()
-            .map(|(c, k)| core_keybind {
+            .map(|(c, k)| Keybind {
                 command: c.clone(),
                 modifier: kb.modifier.clone(),
                 key: k.to_owned(),
