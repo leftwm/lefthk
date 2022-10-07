@@ -62,7 +62,7 @@ impl Worker {
                     }
                 }
                 Some(command) = pipe.read_command() => {
-                    command.execute(&mut self);
+                    errors::log_on_error!(command.execute(&mut self));
                 }
             };
         }

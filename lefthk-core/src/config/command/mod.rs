@@ -24,7 +24,7 @@ pub trait Command {
     where
         Self: Sized;
 
-    fn execute(self, worker: &mut Worker) -> Error;
+    fn execute(&self, worker: &mut Worker) -> Error;
 }
 
 pub fn denormalize<'a>(normalized_command: NormalizedCommand) -> Result<Box<dyn Command>, CommandError> {

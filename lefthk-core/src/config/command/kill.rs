@@ -22,7 +22,7 @@ impl Kill {
 }
 
 impl Command for Kill {
-    fn execute(self, worker: &mut Worker) -> Error {
+    fn execute(&self, worker: &mut Worker) -> Error {
         worker.status = worker::Status::Kill;
         Ok(())
     }

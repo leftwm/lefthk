@@ -20,7 +20,7 @@ impl Reload {
 }
 
 impl Command for Reload {
-    fn execute(self, worker: &mut Worker) -> Error {
+    fn execute(&self, worker: &mut Worker) -> Error {
         worker.status = worker::Status::Reload;
         Ok(())
     }

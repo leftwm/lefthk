@@ -19,7 +19,7 @@ impl ExitChord {
 }
 
 impl Command for ExitChord {
-    fn execute(self, worker: &mut Worker) -> Error {
+    fn execute(&self, worker: &mut Worker) -> Error {
         if worker.chord_ctx.keybinds.is_some() {
             worker.chord_ctx.elapsed = true;
         }
