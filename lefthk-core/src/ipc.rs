@@ -60,10 +60,8 @@ impl Pipe {
     }
 
     pub async fn read_command(&mut self) -> Option<Box<dyn Command>> {
-        if let Some(content) = self.rx.recv().await {
-            if let Ok(normalized_command) = NormalizedCommand::try_from(content) {
-                return command::denormalize(normalized_command).ok();
-            }
+        if let Some(normalized_command) = self.rx.recv().await {
+            return command::denormalize(normalized_command).ok();
         }
         None
     }
@@ -76,8 +74,10 @@ async fn read_from_pipe<'a>(pipe_file: &Path, tx: &mpsc::UnboundedSender<Normali
         while let Ok(line) = lines.next_line().await {
             if let Some(content) = line {
                 if let Ok(normalized_command) = NormalizedCommand::try_from(content) {
-                    if let Ok(_) = command::denormalize(normalized_command.clone()) {
-                        tx.send(normalized_command);
+                    if command::denormalize(normalized_command.clone()).is_ok() {
+                        if let Err(err) = tx.send(normalized_command) {
+                            tracing::error!("{}", err);
+                        }
                     }
                 }
             }

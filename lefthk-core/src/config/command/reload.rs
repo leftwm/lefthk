@@ -10,7 +10,7 @@ use super::{Command, NormalizedCommand};
 
 inventory::submit! {DenormalizeCommandFunction::new::<Reload>()}
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct Reload;
 
 impl Reload {

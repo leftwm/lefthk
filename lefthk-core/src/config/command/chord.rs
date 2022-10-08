@@ -10,7 +10,7 @@ use super::{Command, NormalizedCommand};
 
 inventory::submit! {DenormalizeCommandFunction::new::<Chord>()}
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Chord(Vec<Keybind>);
 
 impl Chord {

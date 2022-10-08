@@ -1,5 +1,5 @@
 use crate::errors::{LeftError, Result};
-use lefthk_core::config::command;
+
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fs, path::Path};
 use xdg::BaseDirectories;

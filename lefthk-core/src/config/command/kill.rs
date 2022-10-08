@@ -12,7 +12,7 @@ use super::{Command, NormalizedCommand};
 
 inventory::submit! {DenormalizeCommandFunction::new::<Kill>()}
 
-#[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize, Deserialize, Default)]
 pub struct Kill;
 
 impl Kill {

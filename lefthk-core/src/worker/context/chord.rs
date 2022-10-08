@@ -1,7 +1,7 @@
 use crate::{config::Keybind, worker::Worker};
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Chord {
     pub keybinds: Option<Vec<Keybind>>,
     pub elapsed: bool,

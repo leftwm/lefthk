@@ -27,7 +27,7 @@ pub trait Command {
     fn execute(&self, worker: &mut Worker) -> Error;
 }
 
-pub fn denormalize<'a>(normalized_command: NormalizedCommand) -> Result<Box<dyn Command>, CommandError> {
+pub fn denormalize(normalized_command: NormalizedCommand) -> Result<Box<dyn Command>, CommandError> {
     for denormalizer in inventory::iter::<DenormalizeCommandFunction> {
         if let Some(denormalized_command) = (denormalizer.0)(&normalized_command) {
             return Ok(denormalized_command);
