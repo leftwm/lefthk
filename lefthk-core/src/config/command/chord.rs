@@ -22,7 +22,8 @@ impl Chord {
 
 impl Command for Chord {
     fn normalize(&self) -> NormalizedCommand {
-        let serialized_string = ron::ser::to_string_pretty(self, PrettyConfig::new().struct_names(true)).unwrap();
+        let serialized_string =
+            ron::ser::to_string_pretty(self, PrettyConfig::new().struct_names(true)).unwrap();
         NormalizedCommand(serialized_string)
     }
 
@@ -43,10 +44,7 @@ impl Command for Chord {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{
-        command::Reload,
-        Command, Keybind,
-    };
+    use crate::config::{command::Reload, Command, Keybind};
 
     use super::Chord;
 

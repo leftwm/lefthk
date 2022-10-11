@@ -61,7 +61,7 @@ impl Worker {
                         self.handle_event(&xlib_event);
                     }
                 }
-                Some(command) = pipe.read_command() => {
+                Some(command) = pipe.get_next_command() => {
                     errors::log_on_error!(command.execute(&mut self));
                 }
             };

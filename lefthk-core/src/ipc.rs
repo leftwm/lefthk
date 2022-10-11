@@ -59,7 +59,7 @@ impl Pipe {
         PathBuf::from(format!("command-{}.pipe", display))
     }
 
-    pub async fn read_command(&mut self) -> Option<Box<dyn Command>> {
+    pub async fn get_next_command(&mut self) -> Option<Box<dyn Command>> {
         if let Some(normalized_command) = self.rx.recv().await {
             return command::denormalize(normalized_command).ok();
         }

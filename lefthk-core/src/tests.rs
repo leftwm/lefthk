@@ -23,24 +23,24 @@ mod ipc {
     use super::test::temp_path;
 
     #[tokio::test]
-    async fn read_command() {
+    async fn simulate_command_sending() {
         let pipe_file = temp_path().unwrap();
         let mut command_pipe = Pipe::new(pipe_file.clone()).await.unwrap();
-
         let mut pipe = fs::OpenOptions::new()
-            .write(true)
-            .open(&pipe_file)
-            .await
-            .unwrap();
+                .write(true)
+                .open(&pipe_file)
+                .await
+                .unwrap();
+
 
         let command = Reload::new();
 
         let normalized = command.normalize();
-
         pipe.write_all(format!("{}\n", normalized).as_bytes()).await.unwrap();
         pipe.flush().await.unwrap();
+        let denormalized = command_pipe.get_next_command().await.unwrap();
 
-        let denormalized = command_pipe.read_command().await.unwrap();
+
         assert_eq!(command.normalize(), denormalized.normalize());
     }
 }
