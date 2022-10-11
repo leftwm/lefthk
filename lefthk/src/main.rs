@@ -1,6 +1,6 @@
 use crate::errors::LeftError;
 use clap::{App, Arg};
-use lefthk_core::config::{Command, command};
+use lefthk_core::config::{command, Command};
 use lefthk_core::ipc::Pipe;
 use lefthk_core::worker::Status;
 use lefthk_core::{config::Config, worker::Worker};
