@@ -18,6 +18,15 @@ impl Execute {
 }
 
 impl Command for Execute {
+    fn normalize(&self) -> NormalizedCommand {
+        let serialized_string = format!("{}{}", self.get_name(), ron::to_string(self).unwrap());
+        NormalizedCommand(serialized_string)
+    }
+
+    fn denormalize(generalized: &NormalizedCommand) -> Option<Box<Self>> {
+        ron::from_str(&generalized.0).ok()
+    }
+
     fn execute(&self, worker: &mut Worker) -> Error {
         worker.chord_ctx.elapsed = worker.chord_ctx.keybinds.is_some();
         let child = std::process::Command::new("sh")
@@ -32,11 +41,7 @@ impl Command for Execute {
         Ok(())
     }
 
-    fn normalize(&self) -> NormalizedCommand {
-        NormalizedCommand(ron::to_string(self).unwrap())
-    }
-
-    fn denormalize(generalized: &NormalizedCommand) -> Option<Box<Self>> {
-        ron::from_str(&generalized.0).ok()
+    fn get_name(&self) -> &'static str {
+        "Execute"
     }
 }

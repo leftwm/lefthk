@@ -20,17 +20,22 @@ impl Chord {
 }
 
 impl Command for Chord {
+    fn normalize(&self) -> NormalizedCommand {
+        let serialized_string = format!("{}{}", self.get_name(), ron::to_string(self).unwrap());
+        NormalizedCommand(serialized_string)
+    }
+
+    fn denormalize(generalized: &NormalizedCommand) -> Option<Box<Self>> {
+        ron::from_str(&generalized.0).ok()
+    }
+
     fn execute(&self, worker: &mut Worker) -> Error {
         worker.xwrap.grab_keys(&self.0);
         worker.chord_ctx.keybinds = Some(self.0.clone());
         Ok(())
     }
 
-    fn normalize(&self) -> NormalizedCommand {
-        NormalizedCommand(ron::to_string(self).unwrap())
-    }
-
-    fn denormalize(generalized: &NormalizedCommand) -> Option<Box<Self>> {
-        ron::from_str(&generalized.0).ok()
+    fn get_name(&self) -> &'static str {
+        "Chord"
     }
 }

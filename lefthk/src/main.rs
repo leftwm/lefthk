@@ -25,9 +25,9 @@ fn main() {
     tracing::info!("lefthk booted!");
 
     if matches.contains_id(QUIT_COMMAND) {
-        send_command(command::Kill);
+        send_command(command::Kill::new());
     } else if matches.contains_id(RELOAD_COMMAND) {
-        send_command(command::Reload);
+        send_command(command::Reload::new());
     } else {
         let mut old_config = None;
         let path =

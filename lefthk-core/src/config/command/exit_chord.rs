@@ -19,6 +19,15 @@ impl ExitChord {
 }
 
 impl Command for ExitChord {
+    fn normalize(&self) -> NormalizedCommand {
+        let serialized_string = format!("{}{}", self.get_name(), ron::to_string(self).unwrap());
+        NormalizedCommand(serialized_string)
+    }
+
+    fn denormalize(generalized: &NormalizedCommand) -> Option<Box<Self>> {
+        ron::from_str(&generalized.0).ok()
+    }
+
     fn execute(&self, worker: &mut Worker) -> Error {
         if worker.chord_ctx.keybinds.is_some() {
             worker.chord_ctx.elapsed = true;
@@ -27,11 +36,7 @@ impl Command for ExitChord {
         Ok(())
     }
 
-    fn normalize(&self) -> NormalizedCommand {
-        NormalizedCommand(ron::to_string(self).unwrap())
-    }
-
-    fn denormalize(generalized: &NormalizedCommand) -> Option<Box<Self>> {
-        ron::from_str(&generalized.0).ok()
+    fn get_name(&self) -> &'static str {
+        "ExitChord"
     }
 }

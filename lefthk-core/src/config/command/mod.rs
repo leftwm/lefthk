@@ -25,6 +25,8 @@ pub trait Command: std::fmt::Debug {
         Self: Sized;
 
     fn execute(&self, worker: &mut Worker) -> Error;
+
+    fn get_name(&self) -> &'static str;
 }
 
 pub fn denormalize(normalized_command: NormalizedCommand) -> Result<Box<dyn Command>, CommandError> {
