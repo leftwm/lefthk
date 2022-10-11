@@ -8,3 +8,6 @@ pub struct Keybind {
     pub modifier: Vec<String>,
     pub key: String,
 }
+
+pub trait KeybindConverter {
+}

@@ -57,7 +57,7 @@ mod tests {
         let denormalized = ExitChord::denormalize(&normalized).unwrap();
 
         assert_eq!(
-            Box::new(command.clone()),
+            Box::new(command),
             denormalized,
             "{:?}, {:?}",
             normalized,

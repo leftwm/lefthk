@@ -65,7 +65,7 @@ mod tests {
         let denormalized = Execute::denormalize(&normalized).unwrap();
 
         assert_eq!(
-            Box::new(command.clone()),
+            Box::new(command),
             denormalized,
             "{:?}, {:?}",
             normalized,
