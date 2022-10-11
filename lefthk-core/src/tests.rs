@@ -18,6 +18,7 @@ mod ipc {
     use tokio::io::AsyncWriteExt;
 
     use crate::config::Command;
+    use crate::config::command::Reload;
     use crate::ipc::Pipe;
 
     use super::test::temp_path;
@@ -35,6 +36,6 @@ mod ipc {
         pipe.write_all(b"Reload\n").await.unwrap();
         pipe.flush().await.unwrap();
 
-        assert_eq!(Command::Reload, command_pipe.read_command().await.unwrap());
+        assert_eq!(Reload::new().normalize(), command_pipe.read_command().await.unwrap().normalize());
     }
 }

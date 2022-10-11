@@ -1,25 +1,29 @@
 pub mod command;
-pub mod keybind;
 pub mod key;
+pub mod keybind;
 
 use crate::errors::{LeftError, Result};
 
 use std::{convert::TryFrom, fs, path::Path};
+use serde::{Deserialize, Serialize};
 use xdg::BaseDirectories;
 
-use self::{command::Command, keybind::Keybind};
+use self::{
+    command::Command,
+    keybind::{Keybind, Keybinds},
+};
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct Config {
-    keybinds: Vec<Keybind>,
+    keybinds: Keybinds,
 }
 
 impl lefthk_core::config::Config for Config {
     fn mapped_bindings(&self) -> Vec<lefthk_core::config::Keybind> {
         self.keybinds
             .iter()
-            .filter_map(|kb| match Keybind::try_from(kb.clone()) {
-                Ok(keybinds) => Some(keybinds),
+            .filter_map(|kb| match TryFrom::try_from(kb.clone()) {
+                Ok(keybinds) => Some::<Vec<lefthk_core::config::Keybind>>(keybinds),
                 Err(err) => {
                     tracing::error!("Invalid key binding: {}\n{:?}", err, kb);
                     None

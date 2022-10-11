@@ -17,7 +17,7 @@ pub use self::{chord::Chord, execute::Execute, exit_chord::ExitChord, kill::Kill
 
 inventory::collect!(DenormalizeCommandFunction);
 
-pub trait Command {
+pub trait Command: std::fmt::Debug {
     fn normalize(&self) -> NormalizedCommand;
 
     fn denormalize(generalized: &NormalizedCommand) -> Option<Box<Self>>
