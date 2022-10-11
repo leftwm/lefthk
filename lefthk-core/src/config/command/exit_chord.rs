@@ -53,7 +53,7 @@ mod tests {
     fn normalize_process() {
         let command = ExitChord::new();
 
-        let normalized = command.clone().normalize();
+        let normalized = command.normalize();
         let denormalized = ExitChord::denormalize(&normalized).unwrap();
 
         assert_eq!(

@@ -61,7 +61,7 @@ mod tests {
     fn normalize_process() {
         let command = Execute::new("echo 'I use Arch by the way'");
 
-        let normalized = command.clone().normalize();
+        let normalized = command.normalize();
         let denormalized = Execute::denormalize(&normalized).unwrap();
 
         assert_eq!(

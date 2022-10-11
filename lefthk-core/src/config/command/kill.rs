@@ -54,7 +54,7 @@ mod testes {
     fn normalize_process() {
         let command = Kill::new();
 
-        let normalized = command.clone().normalize();
+        let normalized = command.normalize();
         let denormalized = Kill::denormalize(&normalized).unwrap();
 
         assert_eq!(

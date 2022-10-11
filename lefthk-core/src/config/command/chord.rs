@@ -56,7 +56,7 @@ mod tests {
             key: String::new(),
         }]);
 
-        let normalized = command.clone().normalize();
+        let normalized = command.normalize();
         let denormalized = Chord::denormalize(&normalized).unwrap();
 
         assert_eq!(

@@ -17,6 +17,9 @@ pub use self::{chord::Chord, execute::Execute, exit_chord::ExitChord, kill::Kill
 
 inventory::collect!(DenormalizeCommandFunction);
 
+// When adding a command:
+//  - a command has to submit itself to the inventory
+//  - write a test that it's conversion between normalizel and denormalize works
 pub trait Command: std::fmt::Debug {
     fn normalize(&self) -> NormalizedCommand;
 
