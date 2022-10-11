@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use super::command::utils::normalized_command::NormalizedCommand;
 
@@ -8,4 +8,3 @@ pub struct Keybind {
     pub modifier: Vec<String>,
     pub key: String,
 }
-

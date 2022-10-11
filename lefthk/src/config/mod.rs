@@ -4,8 +4,8 @@ pub mod keybind;
 
 use crate::errors::{LeftError, Result};
 
-use std::{convert::TryFrom, fs, path::Path};
 use serde::{Deserialize, Serialize};
+use std::{convert::TryFrom, fs, path::Path};
 use xdg::BaseDirectories;
 
 use self::{

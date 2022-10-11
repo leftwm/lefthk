@@ -1,8 +1,7 @@
 pub mod context;
 
-
 use crate::child::Children;
-use crate::config::{Keybind, command};
+use crate::config::{command, Keybind};
 use crate::errors::{self, Error, LeftError};
 use crate::ipc::Pipe;
 use crate::xkeysym_lookup;
@@ -79,7 +78,9 @@ impl Worker {
     fn handle_event(&mut self, xlib_event: &xlib::XEvent) {
         let error = match xlib_event.get_type() {
             xlib::KeyPress => self.handle_key_press(&xlib::XKeyEvent::from(xlib_event)),
-            xlib::MappingNotify => self.handle_mapping_notify(&mut xlib::XMappingEvent::from(xlib_event)),
+            xlib::MappingNotify => {
+                self.handle_mapping_notify(&mut xlib::XMappingEvent::from(xlib_event))
+            }
             _ => return,
         };
         errors::log_on_error!(error);

@@ -1,7 +1,7 @@
 use crate::errors::{LeftError, Result};
+use lefthk_core::config::command as command_mod;
 use lefthk_core::config::Command as core_command;
 use lefthk_core::config::Keybind as core_keybind;
-use lefthk_core::config::command as command_mod;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -71,7 +71,13 @@ impl TryFrom<Keybind> for Vec<core_keybind> {
                 values
                     .iter()
                     .enumerate()
-                    .map(|(i, v)| (Box::new(command_mod::Execute::new(v.to_owned())) as Box<dyn core_command>, keys[i].clone()))
+                    .map(|(i, v)| {
+                        (
+                            Box::new(command_mod::Execute::new(v.to_owned()))
+                                as Box<dyn core_command>,
+                            keys[i].clone(),
+                        )
+                    })
                     .collect()
             }
             Command::Executes(_) => return Err(LeftError::ValuesNotFound),
@@ -99,4 +105,3 @@ impl TryFrom<Keybind> for Vec<core_keybind> {
         Ok(keybinds)
     }
 }
-
