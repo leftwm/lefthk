@@ -22,7 +22,8 @@ impl Reload {
 
 impl Command for Reload {
     fn normalize(&self) -> NormalizedCommand {
-        let serialized_string = ron::ser::to_string_pretty(self, PrettyConfig::new().struct_names(true)).unwrap();
+        let serialized_string =
+            ron::ser::to_string_pretty(self, PrettyConfig::new().struct_names(true)).unwrap();
         NormalizedCommand(serialized_string)
     }
 
@@ -53,9 +54,15 @@ mod tests {
     fn normalize_process() {
         let command = Reload::new();
 
-        let normalized = command.normalize();
+        let normalized = command.clone().normalize();
         let denormalized = Reload::denormalize(&normalized).unwrap();
 
-        assert_eq!(Box::new(command), denormalized);
+        assert_eq!(
+            Box::new(command.clone()),
+            denormalized,
+            "{:?}, {:?}",
+            command,
+            denormalized
+        );
     }
 }

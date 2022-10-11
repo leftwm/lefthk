@@ -1,8 +1,12 @@
 use std::process::Stdio;
 
-use serde::{Serialize, Deserialize};
+use ron::ser::PrettyConfig;
+use serde::{Deserialize, Serialize};
 
-use crate::{worker::Worker, errors::Error, config::command::utils::denormalize_function::DenormalizeCommandFunction};
+use crate::{
+    config::command::utils::denormalize_function::DenormalizeCommandFunction, errors::Error,
+    worker::Worker,
+};
 
 use super::{Command, NormalizedCommand};
 
@@ -19,7 +23,8 @@ impl Execute {
 
 impl Command for Execute {
     fn normalize(&self) -> NormalizedCommand {
-        let serialized_string = format!("{}{}", self.get_name(), ron::to_string(self).unwrap());
+        let serialized_string =
+            ron::ser::to_string_pretty(self, PrettyConfig::new().struct_names(true)).unwrap();
         NormalizedCommand(serialized_string)
     }
 
@@ -43,5 +48,28 @@ impl Command for Execute {
 
     fn get_name(&self) -> &'static str {
         "Execute"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::config::Command;
+
+    use super::Execute;
+
+    #[test]
+    fn normalize_process() {
+        let command = Execute::new("echo 'I use Arch by the way'");
+
+        let normalized = command.clone().normalize();
+        let denormalized = Execute::denormalize(&normalized).unwrap();
+
+        assert_eq!(
+            Box::new(command.clone()),
+            denormalized,
+            "{:?}, {:?}",
+            normalized,
+            denormalized
+        );
     }
 }

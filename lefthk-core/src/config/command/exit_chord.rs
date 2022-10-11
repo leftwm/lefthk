@@ -1,3 +1,4 @@
+use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -20,7 +21,8 @@ impl ExitChord {
 
 impl Command for ExitChord {
     fn normalize(&self) -> NormalizedCommand {
-        let serialized_string = format!("{}{}", self.get_name(), ron::to_string(self).unwrap());
+        let serialized_string =
+            ron::ser::to_string_pretty(self, PrettyConfig::new().struct_names(true)).unwrap();
         NormalizedCommand(serialized_string)
     }
 
@@ -38,5 +40,28 @@ impl Command for ExitChord {
 
     fn get_name(&self) -> &'static str {
         "ExitChord"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::config::Command;
+
+    use super::ExitChord;
+
+    #[test]
+    fn normalize_process() {
+        let command = ExitChord::new();
+
+        let normalized = command.clone().normalize();
+        let denormalized = ExitChord::denormalize(&normalized).unwrap();
+
+        assert_eq!(
+            Box::new(command.clone()),
+            denormalized,
+            "{:?}, {:?}",
+            normalized,
+            denormalized,
+        );
     }
 }

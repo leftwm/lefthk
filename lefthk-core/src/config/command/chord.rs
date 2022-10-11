@@ -1,3 +1,4 @@
+use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -10,7 +11,7 @@ use super::{Command, NormalizedCommand};
 
 inventory::submit! {DenormalizeCommandFunction::new::<Chord>()}
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Chord(Vec<Keybind>);
 
 impl Chord {
@@ -21,7 +22,7 @@ impl Chord {
 
 impl Command for Chord {
     fn normalize(&self) -> NormalizedCommand {
-        let serialized_string = format!("{}{}", self.get_name(), ron::to_string(self).unwrap());
+        let serialized_string = ron::ser::to_string_pretty(self, PrettyConfig::new().struct_names(true)).unwrap();
         NormalizedCommand(serialized_string)
     }
 
@@ -37,5 +38,35 @@ impl Command for Chord {
 
     fn get_name(&self) -> &'static str {
         "Chord"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::config::{
+        command::Reload,
+        Command, Keybind,
+    };
+
+    use super::Chord;
+
+    #[test]
+    fn normalize_process() {
+        let command = Chord::new(vec![Keybind {
+            command: Reload::new().normalize(),
+            modifier: vec![],
+            key: String::new(),
+        }]);
+
+        let normalized = command.clone().normalize();
+        let denormalized = Chord::denormalize(&normalized).unwrap();
+
+        assert_eq!(
+            Box::new(command.clone()),
+            denormalized,
+            "{:?}, {:?}",
+            command,
+            denormalized,
+        );
     }
 }
