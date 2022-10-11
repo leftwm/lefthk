@@ -28,10 +28,7 @@ impl Command for Reload {
     }
 
     fn denormalize(generalized: &NormalizedCommand) -> Option<Box<Self>> {
-        match ron::from_str(&generalized.0) {
-            Ok(penis) => Some(penis),
-            Err(err) => panic!("Message: {}, Struct: {:?}", err, generalized),
-        }
+        ron::from_str(&generalized.0).ok()
     }
 
     fn execute(&self, worker: &mut Worker) -> Error {
