@@ -22,7 +22,7 @@ Config(
         ),
     ]
 )"#;
-        let conf = Cfg::from_string(config.to_string());
+        let conf = Cfg::try_from(config.to_string());
         assert!(conf.is_ok());
         let conf = conf.unwrap();
         assert_eq!(conf.default_modifier.len(), 2);
@@ -49,7 +49,7 @@ Config(
     default_modifier: ["Mod4", "Shift"],
     keybinds: []
 )"#;
-        let conf = Cfg::from_string(config.to_string());
+        let conf = Cfg::try_from(config.to_string());
         assert!(conf.is_ok());
         let conf = conf.unwrap();
         assert_eq!(conf.default_modifier.len(), 2);
@@ -66,7 +66,7 @@ Config(
     #[test]
     fn parse_none_config() {
         // Define empty string
-        let conf = Cfg::from_string(String::new());
+        let conf = Cfg::try_from(String::new());
         assert!(conf.is_err());
     }
 
@@ -98,7 +98,7 @@ Config(
         ),
     ]
 )"#;
-        let conf = Cfg::from_string(config.to_string());
+        let conf = Cfg::try_from(config.to_string());
         assert!(conf.is_ok());
         let conf = conf.unwrap();
         assert_eq!(conf.default_modifier.len(), 2);
