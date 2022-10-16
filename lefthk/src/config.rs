@@ -133,9 +133,10 @@ impl lefthk_core::config::Config for Config {
     }
 }
 
-impl Config {
-    pub fn from_string(contents: String) -> Result<Self> {
-        println!("{contents}");
+impl TryFrom<String> for Config {
+    type Error = LeftError;
+
+    fn try_from(contents: String) -> Result<Self> {
         let mut config: Config = ron::from_str(&contents)?;
         let global_exit_chord = config
             .keybinds
@@ -159,7 +160,7 @@ pub fn load() -> Result<Config> {
     let file_name = path.place_config_file("config.ron")?;
     if Path::new(&file_name).exists() {
         let contents = fs::read_to_string(file_name)?;
-        Config::from_string(contents)?;
+        Config::try_from(contents)?;
     }
     Err(LeftError::NoConfigFound)
 }
