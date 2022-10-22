@@ -7,10 +7,9 @@ mod reload;
 pub mod utils;
 
 use self::utils::{
-    denormalize_function::DenormalizeCommandFunction,
-    normalized_command::NormalizedCommand,
+    denormalize_function::DenormalizeCommandFunction, normalized_command::NormalizedCommand,
 };
-use crate::errors::{Error, Result, LeftError};
+use crate::errors::{Error, LeftError, Result};
 use crate::worker::Worker;
 
 pub use self::{chord::Chord, execute::Execute, exit_chord::ExitChord, kill::Kill, reload::Reload};
@@ -32,9 +31,7 @@ pub trait Command: std::fmt::Debug {
     fn get_name(&self) -> &'static str;
 }
 
-pub fn denormalize(
-    normalized_command: NormalizedCommand,
-) -> Result<Box<dyn Command>> {
+pub fn denormalize(normalized_command: NormalizedCommand) -> Result<Box<dyn Command>> {
     for denormalizer in inventory::iter::<DenormalizeCommandFunction> {
         if let Some(denormalized_command) = (denormalizer.0)(&normalized_command) {
             return Ok(denormalized_command);
