@@ -38,6 +38,8 @@ pub enum LeftError {
     #[error("XDG error: {0}.")]
     XdgBaseDirError(#[from] xdg::BaseDirectoriesError),
 
+    #[error("Given String doesn't match with a command.")]
+    UnmatchingCommand,
     #[error("No command found for keybind.")]
     CommandNotFound,
     #[error("No key found for keybind.")]

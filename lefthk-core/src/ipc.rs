@@ -1,7 +1,7 @@
-use crate::{
-    config::Command,
-    errors::{LeftError, Result},
-};
+use crate::config::command;
+use crate::config::command::utils::normalized_command::NormalizedCommand;
+use crate::config::Command;
+use crate::errors::Result;
 use std::path::{Path, PathBuf};
 use tokio::{
     fs,
@@ -11,7 +11,7 @@ use tokio::{
 
 pub struct Pipe {
     pipe_file: PathBuf,
-    rx: mpsc::UnboundedReceiver<Command>,
+    rx: mpsc::UnboundedReceiver<NormalizedCommand>,
 }
 
 impl Drop for Pipe {
@@ -59,33 +59,28 @@ impl Pipe {
         PathBuf::from(format!("command-{}.pipe", display))
     }
 
-    pub async fn read_command(&mut self) -> Option<Command> {
-        self.rx.recv().await
+    pub async fn get_next_command(&mut self) -> Option<Box<dyn Command>> {
+        if let Some(normalized_command) = self.rx.recv().await {
+            return command::denormalize(normalized_command).ok();
+        }
+        None
     }
 }
 
-async fn read_from_pipe(pipe_file: &Path, tx: &mpsc::UnboundedSender<Command>) -> Option<()> {
-    let file = fs::File::open(pipe_file).await.ok()?;
-    let mut lines = BufReader::new(file).lines();
+async fn read_from_pipe<'a>(pipe_file: &Path, tx: &mpsc::UnboundedSender<NormalizedCommand>) {
+    if let Ok(file) = fs::File::open(pipe_file).await {
+        let mut lines = BufReader::new(file).lines();
 
-    while let Some(line) = lines.next_line().await.ok()? {
-        let cmd = match parse_command(&line) {
-            Ok(cmd) => cmd,
-            Err(err) => {
-                tracing::error!("An error occurred while parsing the command: {}", err);
-                return None;
+        while let Ok(line) = lines.next_line().await {
+            if let Some(content) = line {
+                if let Ok(normalized_command) = NormalizedCommand::try_from(content) {
+                    if command::denormalize(normalized_command.clone()).is_ok() {
+                        if let Err(err) = tx.send(normalized_command) {
+                            tracing::error!("{}", err);
+                        }
+                    }
+                }
             }
-        };
-        tx.send(cmd).ok()?;
-    }
-
-    Some(())
-}
-
-fn parse_command(string: &str) -> Result<Command> {
-    match string {
-        "Reload" => Ok(Command::Reload),
-        "Kill" => Ok(Command::Kill),
-        _ => Err(LeftError::CommandNotFound),
+        }
     }
 }
