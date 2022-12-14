@@ -14,8 +14,8 @@ use xdg::BaseDirectories;
 
 use tracing_subscriber::{filter::EnvFilter, filter::LevelFilter, fmt, layer::SubscriberExt};
 
-pub(crate) mod config;
-pub(crate) mod errors;
+pub mod config;
+pub mod errors;
 mod tests;
 
 const QUIT_COMMAND: &str = "quit";
