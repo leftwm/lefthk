@@ -1,18 +1,21 @@
 use crate::errors::LeftError;
 use clap::{App, Arg};
-use lefthk_core::config::{command, Command};
-use lefthk_core::ipc::Pipe;
-use lefthk_core::worker::Status;
-use lefthk_core::{config::Config, worker::Worker};
-use std::fs;
-use std::io::Write;
-use std::sync::atomic::{AtomicBool, Ordering};
+use lefthk_core::{
+    config::{command, Command, Config},
+    ipc::Pipe,
+    worker::{Status, Worker},
+};
+use std::{
+    fs,
+    io::Write,
+    sync::atomic::{AtomicBool, Ordering},
+};
 use xdg::BaseDirectories;
 
 use tracing_subscriber::{filter::EnvFilter, filter::LevelFilter, fmt, layer::SubscriberExt};
 
-pub mod config;
-pub mod errors;
+pub(crate) mod config;
+pub(crate) mod errors;
 mod tests;
 
 const QUIT_COMMAND: &str = "quit";
