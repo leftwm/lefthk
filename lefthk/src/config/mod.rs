@@ -19,7 +19,7 @@ pub struct Config {
 }
 
 impl lefthk_core::config::Config for Config {
-    fn mapped_bindings(&self) -> Vec<lefthk_core::config::Keybind> {
+    fn convert_to_core_keybind(&self) -> Vec<lefthk_core::config::Keybind> {
         self.keybinds
             .iter()
             .filter_map(|kb| match TryFrom::try_from(kb.clone()) {

@@ -49,7 +49,7 @@ fn main() {
                 let _rt_guard = rt.enter();
 
                 let status =
-                    rt.block_on(Worker::new(config.mapped_bindings(), path.clone()).event_loop());
+                    rt.block_on(Worker::new(config.convert_to_core_keybind(), path.clone()).event_loop());
                 kill_requested.store(status == Status::Kill, Ordering::SeqCst);
             });
 
