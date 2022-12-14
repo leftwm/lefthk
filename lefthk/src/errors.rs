@@ -35,7 +35,9 @@ pub enum LeftError {
     #[error("IO error: {0}.")]
     IoError(#[from] std::io::Error),
     #[error("RON error: {0}.")]
-    KdlError(#[from] ron::error::Error),
+    RonError(#[from] ron::error::Error),
+    #[error("RON spanned error {0}.")]
+    SpannedError(#[from] ron::error::SpannedError),
     #[error("XDG error: {0}.")]
     XdgBaseDirError(#[from] xdg::BaseDirectoriesError),
 
