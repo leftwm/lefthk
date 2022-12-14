@@ -1,6 +1,8 @@
 use crate::errors::LeftError;
 use clap::{App, Arg};
+use lefthk_core::config::{command, Command};
 use lefthk_core::ipc::Pipe;
+use lefthk_core::worker::Status;
 use lefthk_core::{config::Config, worker::Worker};
 use std::fs;
 use std::io::Write;
@@ -23,9 +25,9 @@ fn main() {
     tracing::info!("lefthk booted!");
 
     if matches.contains_id(QUIT_COMMAND) {
-        send_command("Kill");
+        send_command(command::Kill::new());
     } else if matches.contains_id(RELOAD_COMMAND) {
-        send_command("Reload");
+        send_command(command::Reload::new());
     } else {
         let mut old_config = None;
         let path =
@@ -46,9 +48,9 @@ fn main() {
                 let rt = errors::return_on_error!(tokio::runtime::Runtime::new());
                 let _rt_guard = rt.enter();
 
-                let kill =
+                let status =
                     rt.block_on(Worker::new(config.mapped_bindings(), path.clone()).event_loop());
-                kill_requested.store(kill, Ordering::SeqCst);
+                kill_requested.store(status == Status::Kill, Ordering::SeqCst);
             });
 
             match completed {
@@ -63,12 +65,12 @@ fn main() {
     }
 }
 
-fn send_command(command: &str) {
+fn send_command(command: impl Command) {
     let path = errors::exit_on_error!(BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME));
     let pipe_name = Pipe::pipe_name();
     let pipe_file = errors::exit_on_error!(path.place_runtime_file(pipe_name));
     let mut pipe = fs::OpenOptions::new().write(true).open(&pipe_file).unwrap();
-    writeln!(pipe, "{}", command).unwrap();
+    writeln!(pipe, "{}", command.normalize()).unwrap();
 }
 
 fn get_app() -> App<'static> {

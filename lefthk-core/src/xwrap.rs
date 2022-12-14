@@ -194,7 +194,6 @@ impl XWrap {
         unsafe { (self.xlib.XFlush)(self.display) };
     }
 
-    /// Wait until readable.
     pub fn wait_readable(&mut self) -> Pin<Box<dyn Future<Output = ()>>> {
         let task_notify = self.task_notify.clone();
         Box::pin(async move {

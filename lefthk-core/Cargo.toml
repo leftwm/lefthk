@@ -1,6 +1,6 @@
 [package]
 name = "lefthk-core"
-version = "0.1.8"
+version = "0.1.9"
 edition = "2021"
 license = "BSD-3-Clause"
 readme = "README.md"
@@ -15,6 +15,9 @@ thiserror = "1.0.30"
 tokio = { version = "1.14.0", features = ["fs", "io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
 x11-dl = "2.19.1"
 xdg = "2.4.0"
+ron = "0.8.0"
+serde = { version = "1.0.145", features= ["derive"]}
+inventory = "0.3.2"
 
 # logging
 tracing = "0.1.36"

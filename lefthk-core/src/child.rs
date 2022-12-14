@@ -60,9 +60,9 @@ impl Children {
         self.inner.len() == 0
     }
 
-    /// Insert a `Child` in the `Children`.
-    /// If this `Children` did not have this value present, true is returned.
-    /// If this `Children` did have this value present, false is returned.
+    /// Add another child-process.
+    /// ## Return value
+    /// `false` if it's already registered, otherwise `true`
     pub fn insert(&mut self, child: Child) -> bool {
         // Not possible to have duplication!
         self.inner.insert(child.id(), child).is_none()
@@ -73,10 +73,8 @@ impl Children {
         self.inner.extend(reaper.inner.into_iter());
     }
 
-    /// Try reaping all the children processes managed by this struct.
+    /// Remove all children which finished
     pub fn reap(&mut self) {
-        // The `try_wait` needs `child` to be `mut`, but only `HashMap::retain`
-        // allows modifying the value. Here `id` is not needed.
         self.inner
             .retain(|_, child| child.try_wait().map_or(true, |ret| ret.is_none()));
     }
