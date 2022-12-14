@@ -16,9 +16,9 @@ pub use self::{chord::Chord, execute::Execute, exit_chord::ExitChord, kill::Kill
 
 inventory::collect!(DenormalizeCommandFunction);
 
-// When adding a command:
-//  - a command has to submit itself to the inventory
-//  - write a test that it's conversion between normalizel and denormalize works
+/// When adding a command:
+///  - a command has to submit itself to the inventory
+///  - write a test that it's conversion between normalizel and denormalize works
 pub trait Command: std::fmt::Debug {
     fn normalize(&self) -> NormalizedCommand;
 
@@ -26,14 +26,20 @@ pub trait Command: std::fmt::Debug {
     where
         Self: Sized;
 
+    /// # Errors
+    ///
+    /// This errors when the command cannot be executed by the worker
     fn execute(&self, worker: &mut Worker) -> Error;
 
     fn get_name(&self) -> &'static str;
 }
 
-pub fn denormalize(normalized_command: NormalizedCommand) -> Result<Box<dyn Command>> {
+/// # Errors
+///
+/// This errors when the command cannot be matched with the known commands
+pub fn denormalize(normalized_command: &NormalizedCommand) -> Result<Box<dyn Command>> {
     for denormalizer in inventory::iter::<DenormalizeCommandFunction> {
-        if let Some(denormalized_command) = (denormalizer.0)(&normalized_command) {
+        if let Some(denormalized_command) = (denormalizer.0)(normalized_command) {
             return Ok(denormalized_command);
         }
     }

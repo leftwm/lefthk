@@ -16,7 +16,7 @@ inventory::submit! {DenormalizeCommandFunction::new::<Execute>()}
 pub struct Execute(String);
 
 impl Execute {
-    pub fn new<T: ToString>(shell_command: T) -> Self {
+    pub fn new<T: ToString>(shell_command: &T) -> Self {
         Self(shell_command.to_string())
     }
 }
@@ -59,7 +59,7 @@ mod tests {
 
     #[test]
     fn normalize_process() {
-        let command = Execute::new("echo 'I use Arch by the way'");
+        let command = Execute::new(&"echo 'I use Arch by the way'");
 
         let normalized = command.normalize();
         let denormalized = Execute::denormalize(&normalized).unwrap();
