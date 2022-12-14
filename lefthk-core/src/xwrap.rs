@@ -29,6 +29,7 @@ impl XWrap {
     ///
     /// Panics if unable to contact xorg.
     #[must_use]
+    #[allow(clippy::items_after_statements)]
     pub fn new() -> Self {
         const SERVER: mio::Token = mio::Token(0);
         let xlib = errors::exit_on_error!(xlib::Xlib::open());
@@ -36,7 +37,7 @@ impl XWrap {
         assert!(!display.is_null(), "Null pointer in display");
 
         let fd = unsafe { (xlib.XConnectionNumber)(display) };
-        let (guard, _task_guard) = oneshot::channel();
+        let (guard, task_guard) = oneshot::channel();
         let notify = Arc::new(Notify::new());
         let task_notify = notify.clone();
         let mut poll = errors::exit_on_error!(mio::Poll::new());
@@ -69,7 +70,7 @@ impl XWrap {
             display,
             root,
             task_notify,
-            _task_guard,
+            _task_guard: task_guard,
         };
 
         // Setup cached keymap/modifier information, otherwise MappingNotify might never be called
@@ -80,6 +81,7 @@ impl XWrap {
         // This is allowed for now as const extern fns
         // are not yet stable (1.56.0, 16 Sept 2021)
         // see issue #64926 <https://github.com/rust-lang/rust/issues/64926> for more information
+        // also this is the reason for #[allow(clippy::items_after_statements)] above
         #[allow(clippy::missing_const_for_fn)]
         extern "C" fn on_error_from_xlib(
             _: *mut xlib::Display,

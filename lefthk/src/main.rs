@@ -25,9 +25,9 @@ fn main() {
     tracing::info!("lefthk booted!");
 
     if matches.contains_id(QUIT_COMMAND) {
-        send_command(command::Kill::new());
+        send_command(&command::Kill::new());
     } else if matches.contains_id(RELOAD_COMMAND) {
-        send_command(command::Reload::new());
+        send_command(&command::Reload::new());
     } else {
         let mut old_config = None;
         let path =
@@ -35,13 +35,14 @@ fn main() {
         loop {
             let config = match config::load() {
                 Ok(config) => config,
-                Err(err) => match old_config {
-                    Some(config) => config,
-                    None => {
+                Err(err) => {
+                    if let Some(config) = old_config {
+                        config
+                    } else {
                         tracing::error!("Unable to load new config due to error: {}", err);
                         return;
                     }
-                },
+                }
             };
             let kill_requested = AtomicBool::new(false);
             let completed = std::panic::catch_unwind(|| {
@@ -65,7 +66,7 @@ fn main() {
     }
 }
 
-fn send_command(command: impl Command) {
+fn send_command(command: &impl Command) {
     let path = errors::exit_on_error!(BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME));
     let pipe_name = Pipe::pipe_name();
     let pipe_file = errors::exit_on_error!(path.place_runtime_file(pipe_name));

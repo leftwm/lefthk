@@ -34,6 +34,10 @@ impl lefthk_core::config::Config for Config {
     }
 }
 
+/// # Errors
+///
+/// Thes will error when no config file is found, most propably as system or
+/// user error for provideng a wrong path
 pub fn load() -> Result<Config> {
     let path = BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME)?;
     fs::create_dir_all(&path.get_config_home())?;
@@ -51,14 +55,14 @@ pub fn load() -> Result<Config> {
             .iter_mut()
             .filter(|kb| matches!(kb.command, Command::Chord(_)))
             .collect();
-        propagate_exit_chord(chords, global_exit_chord);
+        propagate_exit_chord(chords, &global_exit_chord);
 
         return Ok(config);
     }
     Err(LeftError::NoConfigFound)
 }
 
-fn propagate_exit_chord(chords: Vec<&mut Keybind>, exit_chord: Option<Keybind>) {
+fn propagate_exit_chord(chords: Vec<&mut Keybind>, exit_chord: &Option<Keybind>) {
     for chord in chords {
         if let Command::Chord(children) = &mut chord.command {
             if !children.iter().any(|kb| kb.command == Command::ExitChord) {
@@ -74,7 +78,7 @@ fn propagate_exit_chord(chords: Vec<&mut Keybind>, exit_chord: Option<Keybind>) 
                 .iter_mut()
                 .filter(|kb| matches!(kb.command, Command::Chord(_)))
                 .collect();
-            propagate_exit_chord(sub_chords, parent_exit_chord);
+            propagate_exit_chord(sub_chords, &parent_exit_chord);
         }
     }
 }
