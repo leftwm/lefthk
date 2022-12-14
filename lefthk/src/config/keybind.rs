@@ -33,13 +33,13 @@ pub struct Keybind {
     pub key: Key,
 }
 
-pub(crate) fn try_from(kb: Keybind, default_modifier: Vec<String>) -> Result<Vec<core_keybind>> {
+pub(crate) fn try_from(kb: Keybind, default_modifier: &[String]) -> Result<Vec<core_keybind>> {
     let command_key_pairs: Vec<(Box<dyn core_command>, String)> = match kb.command {
         Command::Chord(children) if !children.is_empty() => {
             let key = get_key!(kb.key);
             let children = children
                 .iter()
-                .filter_map(|kb| match try_from(kb.clone(), default_modifier.clone()) {
+                .filter_map(|kb| match try_from(kb.clone(), default_modifier) {
                     Ok(keybinds) => Some::<Vec<lefthk_core::config::Keybind>>(keybinds),
                     Err(err) => {
                         tracing::error!("Invalid key binding: {}\n{:?}", err, kb);
@@ -94,8 +94,8 @@ pub(crate) fn try_from(kb: Keybind, default_modifier: Vec<String>) -> Result<Vec
             modifier: kb
                 .modifier
                 .clone()
-                .unwrap_or_else(|| default_modifier.clone()),
-            key: k.to_owned(),
+                .unwrap_or_else(|| default_modifier.to_vec()),
+            key: k.clone(),
         })
         .collect();
     Ok(keybinds)

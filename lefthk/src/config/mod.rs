@@ -24,7 +24,7 @@ impl lefthk_core::config::Config for Config {
         self.keybinds
             .iter()
             .filter_map(
-                |kb| match keybind::try_from(kb.clone(), self.default_modifier.clone()) {
+                |kb| match keybind::try_from(kb.clone(), &self.default_modifier.clone()) {
                     Ok(keybinds) => Some::<Vec<lefthk_core::config::Keybind>>(keybinds),
                     Err(err) => {
                         tracing::error!("Invalid key binding: {}\n{:?}", err, kb);
@@ -58,6 +58,9 @@ impl TryFrom<String> for Config {
     }
 }
 
+/// # Errors
+///
+/// This errors, when no Config is found at the path
 pub fn load() -> Result<Config> {
     let path = BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME)?;
     fs::create_dir_all(&path.get_config_home())?;
