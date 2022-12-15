@@ -1,9 +1,9 @@
 /// Config Testing
 #[cfg(test)]
 mod config {
-    use lefthk_core::config::{Command, Config, Keybind};
+    use lefthk_core::config::{Command, Config};
 
-    use crate::config::Config as Cfg;
+    use crate::config::{self, command::Command as Cmd, keybind::Keybind as Kbd, Config as Cfg};
 
     #[test]
     fn parse_config() {
@@ -114,10 +114,10 @@ Config(
         assert_eq!(default_keybind.modifier, conf.default_modifier);
         assert_eq!(
             default_keybind.command,
-            Command::Chord(vec![Keybind {
-                command: Command::Execute("st -e htop".to_string()),
-                modifier: vec!["Mod4".to_string(), "Shift".to_string()],
-                key: "c".to_string(),
+            Cmd::Chord(vec![Kbd {
+                command: Cmd::Execute("st -e htop".to_string()),
+                modifier: Some(vec!["Mod4".to_string(), "Shift".to_string()]),
+                key: config::key::Key::Key("c".to_string()),
             }])
         );
 
@@ -127,10 +127,10 @@ Config(
         assert_eq!(custom_keybind.modifier, vec!["Mod4".to_string()]);
         assert_eq!(
             custom_keybind.command,
-            Command::Chord(vec![Keybind {
-                command: Command::Execute("st -e htop".to_string()),
-                modifier: vec!["Mod4".to_string()],
-                key: "c".to_string(),
+            Cmd::Chord(vec![Kbd {
+                command: Cmd::Execute("st -e htop".to_string()),
+                modifier: Some(vec!["Mod4".to_string()]),
+                key: config::key::Key::Key("c".to_string()),
             }])
         );
     }

@@ -15,7 +15,7 @@ use self::{
 
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct Config {
-    default_modifier: Vec<String>,
+    pub(crate) default_modifier: Vec<String>,
     keybinds: Keybinds,
 }
 
