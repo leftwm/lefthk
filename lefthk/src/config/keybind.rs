@@ -60,7 +60,7 @@ impl TryFrom<Keybind> for Vec<core_keybind> {
             Command::Chord(_) => return Err(LeftError::ChildrenNotFound),
             Command::Execute(value) if !value.is_empty() => {
                 let keys = get_key!(kb.key);
-                vec![(Box::new(command_mod::Execute::new(value)), keys)]
+                vec![(Box::new(command_mod::Execute::new(&value)), keys)]
             }
             Command::Execute(_) => return Err(LeftError::ValueNotFound),
             Command::Executes(values) if !values.is_empty() => {
@@ -73,8 +73,7 @@ impl TryFrom<Keybind> for Vec<core_keybind> {
                     .enumerate()
                     .map(|(i, v)| {
                         (
-                            Box::new(command_mod::Execute::new(v.to_owned()))
-                                as Box<dyn core_command>,
+                            Box::new(command_mod::Execute::new(&v)) as Box<dyn core_command>,
                             keys[i].clone(),
                         )
                     })
@@ -99,7 +98,7 @@ impl TryFrom<Keybind> for Vec<core_keybind> {
             .map(|(c, k)| core_keybind {
                 command: c.normalize(),
                 modifier: kb.modifier.clone(),
-                key: k.to_owned(),
+                key: k.clone(),
             })
             .collect();
         Ok(keybinds)

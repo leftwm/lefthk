@@ -29,10 +29,10 @@ impl Default for Children {
 
 impl Children {
     pub fn new() -> Self {
-        let (guard, _task_guard) = oneshot::channel();
+        let (guard, task_guard) = oneshot::channel();
         let task_notify = Arc::new(Notify::new());
         let notify = task_notify.clone();
-        let mut signals = Signals::new(&[signal::SIGCHLD]).expect("Couldn't setup signals.");
+        let mut signals = Signals::new([signal::SIGCHLD]).expect("Couldn't setup signals.");
         tokio::task::spawn_blocking(move || loop {
             if guard.is_closed() {
                 return;
@@ -45,7 +45,7 @@ impl Children {
 
         Self {
             task_notify,
-            _task_guard,
+            _task_guard: task_guard,
             inner: HashMap::default(),
         }
     }

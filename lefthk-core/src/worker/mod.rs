@@ -90,7 +90,7 @@ impl Worker {
         let key = self.xwrap.keycode_to_keysym(event.keycode);
         let mask = xkeysym_lookup::clean_mask(event.state);
         if let Some(keybind) = self.get_keybind((mask, key)) {
-            if let Ok(command) = command::denormalize(keybind.command) {
+            if let Ok(command) = command::denormalize(&keybind.command) {
                 return command.execute(self);
             }
         } else {
