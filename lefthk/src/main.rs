@@ -70,7 +70,7 @@ fn send_command(command: &impl Command) {
     let path = errors::exit_on_error!(BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME));
     let pipe_name = Pipe::pipe_name();
     let pipe_file = errors::exit_on_error!(path.place_runtime_file(pipe_name));
-    let mut pipe = fs::OpenOptions::new().write(true).open(&pipe_file).unwrap();
+    let mut pipe = fs::OpenOptions::new().write(true).open(pipe_file).unwrap();
     writeln!(pipe, "{}", command.normalize()).unwrap();
 }
 
