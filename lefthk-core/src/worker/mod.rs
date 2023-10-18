@@ -50,10 +50,10 @@ impl Worker {
             self.evaluate_chord();
 
             tokio::select! {
-                _ = self.children.wait_readable() => {
+                () = self.children.wait_readable() => {
                     self.children.reap();
                 }
-                _ = self.xwrap.wait_readable() => {
+                () = self.xwrap.wait_readable() => {
                     let event_in_queue = self.xwrap.queue_len();
                     for _ in 0..event_in_queue {
                         let xlib_event = self.xwrap.get_next_event();
