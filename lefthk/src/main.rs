@@ -55,7 +55,7 @@ fn main() {
             });
 
             match completed {
-                Ok(_) => tracing::info!("Completed"),
+                Ok(()) => tracing::info!("Completed"),
                 Err(err) => tracing::error!("Completed with error: {:?}", err),
             }
             if kill_requested.load(Ordering::SeqCst) {
