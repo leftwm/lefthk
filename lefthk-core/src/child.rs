@@ -28,6 +28,10 @@ impl Default for Children {
 }
 
 impl Children {
+    /// Initiate new children
+    ///
+    /// # Panics
+    /// - Panics if SIGCHLD cannot be created.
     pub fn new() -> Self {
         let (guard, task_guard) = oneshot::channel();
         let task_notify = Arc::new(Notify::new());
@@ -70,7 +74,7 @@ impl Children {
 
     /// Merge another `Children` into this `Children`.
     pub fn merge(&mut self, reaper: Self) {
-        self.inner.extend(reaper.inner.into_iter());
+        self.inner.extend(reaper.inner);
     }
 
     /// Remove all children which finished
