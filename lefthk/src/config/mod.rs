@@ -39,10 +39,10 @@ impl lefthk_core::config::Config for Config {
 
 impl TryFrom<String> for Config {
     type Error = LeftError;
-/// # Errors
-///
-/// Thes will error when no config file is found, most propably as system or
-/// user error for provideng a wrong path
+    /// # Errors
+    ///
+    /// Thes will error when no config file is found, most propably as system or
+    /// user error for provideng a wrong path
     fn try_from(contents: String) -> Result<Self> {
         let mut config: Config = ron::from_str(&contents)?;
         let global_exit_chord = config
@@ -66,7 +66,7 @@ impl TryFrom<String> for Config {
 /// This errors, when no Config is found at the path
 pub fn load() -> Result<Config> {
     let path = BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME)?;
-    fs::create_dir_all(&path.get_config_home())?;
+    fs::create_dir_all(path.get_config_home())?;
     let file_name = path.place_config_file("config.ron")?;
     if Path::new(&file_name).exists() {
         let contents = fs::read_to_string(file_name)?;
