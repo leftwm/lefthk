@@ -134,7 +134,10 @@ Config(
         let custom_keybind = conf_mapped.first().unwrap();
         assert_eq!(custom_keybind.modifier.len(), 1);
         assert_eq!(custom_keybind.modifier, vec!["Mod4".to_string()]);
-        assert_eq!(custom_keybind.command, NormalizedCommand(r#"Chord([
+        assert_eq!(
+            custom_keybind.command,
+            NormalizedCommand(
+                r#"Chord([
     Keybind(
         command: NormalizedCommand("Execute(\"st -e htop\")"),
         modifier: [
@@ -142,6 +145,9 @@ Config(
         ],
         key: "c",
     ),
-])"#.to_string()));
+])"#
+                .to_string()
+            )
+        );
     }
 }
