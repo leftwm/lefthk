@@ -6,16 +6,16 @@ LeftHK - A hotkey daemon written in Rust
 The configuration file should be created in ~/.config/lefthk/ and called config.ron. If the configuration file is not created the program will exit.
 Example config:
 ```ron
+#![enable(implicit_some)]
 Config(
+    default_modifier: ["Mod4", "Shift"],
     keybinds: [
         Keybind(
             command: Execute("st -e htop"),
-            modifier: ["Mod4", "Shift"],
             key: Key("x"),
         ),
         Keybind(
             command: Executes(["st -e htop", "st -e bpytop"]),
-            modifier: ["Mod4", "Shift"],
             key: Keys(["x", "m"]),
         ),
         Keybind(

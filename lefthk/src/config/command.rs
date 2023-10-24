@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::keybind::Keybind;
+use crate::config::keybind::Keybind;
 
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum Command {

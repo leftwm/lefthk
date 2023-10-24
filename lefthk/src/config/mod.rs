@@ -5,7 +5,7 @@ pub mod keybind;
 use crate::errors::{LeftError, Result};
 
 use serde::{Deserialize, Serialize};
-use std::{convert::TryFrom, fs, path::Path};
+use std::{fs, path::Path};
 use xdg::BaseDirectories;
 
 use self::{
@@ -15,6 +15,7 @@ use self::{
 
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct Config {
+    pub(crate) default_modifier: Vec<String>,
     keybinds: Keybinds,
 }
 
@@ -22,28 +23,27 @@ impl lefthk_core::config::Config for Config {
     fn mapped_bindings(&self) -> Vec<lefthk_core::config::Keybind> {
         self.keybinds
             .iter()
-            .filter_map(|kb| match TryFrom::try_from(kb.clone()) {
-                Ok(keybinds) => Some::<Vec<lefthk_core::config::Keybind>>(keybinds),
-                Err(err) => {
-                    tracing::error!("Invalid key binding: {}\n{:?}", err, kb);
-                    None
-                }
-            })
+            .filter_map(
+                |kb| match keybind::try_from(kb.clone(), &self.default_modifier.clone()) {
+                    Ok(keybinds) => Some::<Vec<lefthk_core::config::Keybind>>(keybinds),
+                    Err(err) => {
+                        tracing::error!("Invalid key binding: {}\n{:?}", err, kb);
+                        None
+                    }
+                },
+            )
             .flatten()
             .collect()
     }
 }
 
-/// # Errors
-///
-/// Thes will error when no config file is found, most propably as system or
-/// user error for provideng a wrong path
-pub fn load() -> Result<Config> {
-    let path = BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME)?;
-    fs::create_dir_all(path.get_config_home())?;
-    let file_name = path.place_config_file("config.ron")?;
-    if Path::new(&file_name).exists() {
-        let contents = fs::read_to_string(file_name)?;
+impl TryFrom<String> for Config {
+    type Error = LeftError;
+    /// # Errors
+    ///
+    /// Thes will error when no config file is found, most propably as system or
+    /// user error for provideng a wrong path
+    fn try_from(contents: String) -> Result<Self> {
         let mut config: Config = ron::from_str(&contents)?;
         let global_exit_chord = config
             .keybinds
@@ -57,7 +57,20 @@ pub fn load() -> Result<Config> {
             .collect();
         propagate_exit_chord(chords, &global_exit_chord);
 
-        return Ok(config);
+        Ok(config)
+    }
+}
+
+/// # Errors
+///
+/// This errors, when no Config is found at the path
+pub fn load() -> Result<Config> {
+    let path = BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME)?;
+    fs::create_dir_all(path.get_config_home())?;
+    let file_name = path.place_config_file("config.ron")?;
+    if Path::new(&file_name).exists() {
+        let contents = fs::read_to_string(file_name)?;
+        Config::try_from(contents)?;
     }
     Err(LeftError::NoConfigFound)
 }
