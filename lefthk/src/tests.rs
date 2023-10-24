@@ -1,9 +1,10 @@
 /// Config Testing
 #[cfg(test)]
 mod config {
-    use lefthk_core::config::{Command, Config};
+    use lefthk_core::config::command::utils::normalized_command::NormalizedCommand;
+    use lefthk_core::config::Config;
 
-    use crate::config::{self, command::Command as Cmd, keybind::Keybind as Kbd, Config as Cfg};
+    use crate::config::Config as Cfg;
 
     #[test]
     fn parse_config() {
@@ -114,24 +115,33 @@ Config(
         assert_eq!(default_keybind.modifier, conf.default_modifier);
         assert_eq!(
             default_keybind.command,
-            Cmd::Chord(vec![Kbd {
-                command: Cmd::Execute("st -e htop".to_string()),
-                modifier: Some(vec!["Mod4".to_string(), "Shift".to_string()]),
-                key: config::key::Key::Key("c".to_string()),
-            }])
+            NormalizedCommand(
+                r#"Chord([
+    Keybind(
+        command: NormalizedCommand("Execute(\"st -e htop\")"),
+        modifier: [
+            "Mod4",
+            "Shift",
+        ],
+        key: "c",
+    ),
+])"#
+                .to_string()
+            )
         );
 
         // Verify custom modifier implementation
         let custom_keybind = conf_mapped.first().unwrap();
         assert_eq!(custom_keybind.modifier.len(), 1);
         assert_eq!(custom_keybind.modifier, vec!["Mod4".to_string()]);
-        assert_eq!(
-            custom_keybind.command,
-            Cmd::Chord(vec![Kbd {
-                command: Cmd::Execute("st -e htop".to_string()),
-                modifier: Some(vec!["Mod4".to_string()]),
-                key: config::key::Key::Key("c".to_string()),
-            }])
-        );
+        assert_eq!(custom_keybind.command, NormalizedCommand(r#"Chord([
+    Keybind(
+        command: NormalizedCommand("Execute(\"st -e htop\")"),
+        modifier: [
+            "Mod4",
+        ],
+        key: "c",
+    ),
+])"#.to_string()));
     }
 }
