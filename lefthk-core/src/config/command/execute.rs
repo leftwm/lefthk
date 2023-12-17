@@ -39,6 +39,7 @@ impl Command for Execute {
             .arg(&self.0)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
+            .stderr(Stdio::null())
             .spawn()?;
 
         worker.children.insert(child);
