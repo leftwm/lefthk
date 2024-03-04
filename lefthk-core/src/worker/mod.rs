@@ -8,6 +8,8 @@ use crate::errors::{self, Error, LeftError};
 use crate::evdev;
 use crate::evdev::EvDev;
 use crate::ipc::Pipe;
+use evdev_rs::enums::EV_KEY;
+use evdev_rs::ReadFlag;
 use xdg::BaseDirectories;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -20,6 +22,8 @@ pub enum Status {
 pub struct Worker {
     keybinds: Vec<Keybind>,
     base_directory: BaseDirectories,
+
+    keys_pressed: Vec<EV_KEY>,
 
     pub evdev: EvDev,
     pub children: Children,
@@ -35,6 +39,7 @@ impl Worker {
             status: Status::Continue,
             keybinds,
             base_directory,
+            keys_pressed: Vec::new(),
             evdev: EvDev::new(),
             children: Children::default(),
             chord_ctx: context::Chord::new(),
@@ -54,7 +59,7 @@ impl Worker {
                 () = self.evdev.wait_readable() => {
                     for device in &self.evdev.devices {
                         while device.has_event_pending() {
-                            match device.next_event(evdev_rs::ReadFlag::NORMAL) {
+                            match device.next_event(ReadFlag::NORMAL | ReadFlag::BLOCKING) {
                                 Ok((_, event)) if event.value == 1 => println!("{:?}", event),
                                 Err(_) => println!("Boo"),
                                 _ => {},
