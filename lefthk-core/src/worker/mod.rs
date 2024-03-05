@@ -3,9 +3,9 @@ pub mod context;
 use crate::child::Children;
 use crate::config::{command, Keybind};
 use crate::errors::{self, LeftError};
-use crate::evdev::EvDev;
+use crate::evdev::{EvDev, Task};
 use crate::ipc::Pipe;
-use crate::keysym_lookup;
+use crate::keysym_lookup::{self, is_modifier, MOD_MASK};
 use evdev_rs::enums::{EventCode, EV_KEY};
 use evdev_rs::InputEvent;
 use xdg::BaseDirectories;
@@ -41,6 +41,7 @@ pub struct Worker {
     base_directory: BaseDirectories,
 
     keys_pressed: Vec<EV_KEY>,
+    mods_pressed: Vec<MOD_MASK>,
 
     pub evdev: EvDev,
     pub children: Children,
@@ -57,7 +58,8 @@ impl Worker {
             keybinds,
             base_directory,
             keys_pressed: Vec::new(),
-            evdev: EvDev::new(),
+            mods_pressed: Vec::new(),
+            evdev: EvDev::default(),
             children: Children::default(),
             chord_ctx: context::Chord::new(),
         }
@@ -74,8 +76,15 @@ impl Worker {
                     println!("Reaping children");
                     self.children.reap();
                 }
-                Some(event) = self.evdev.task_receiver.recv() => {
-                    self.handle_event(&event);
+                Some(task) = self.evdev.task_receiver.recv() => {
+                    match task {
+                        Task::KeyboardEvent(event) => {
+                            self.handle_event(&event);
+                        }
+                        Task::KeyboardAdded(path) => {
+                            self.evdev.add_device(path.into());
+                        }
+                    }
                 }
                 Some(command) = pipe.get_next_command() => {
                     errors::log_on_error!(command.execute(&mut self));
@@ -97,7 +106,11 @@ impl Worker {
         match r#type {
             KeyEventType::Release => {
                 if let EventCode::EV_KEY(key) = event.event_code {
-                    if let Some(index) = self.keys_pressed.iter().position(|&k| k == key) {
+                    if is_modifier(&key) {
+                        if let Ok(modifier) = key.try_into() {
+                            self.mods_pressed.retain(|&m| m != modifier);
+                        }
+                    } else if let Some(index) = self.keys_pressed.iter().position(|&k| k == key) {
                         self.keys_pressed.remove(index);
                     }
                 }
@@ -105,13 +118,20 @@ impl Worker {
             KeyEventType::Press => {
                 let mut new_key = false;
                 if let EventCode::EV_KEY(key) = event.event_code {
-                    if !self.keys_pressed.contains(&key) {
+                    if is_modifier(&key) {
+                        match key.try_into() {
+                            Ok(modifier) if !self.mods_pressed.contains(&modifier) => {
+                                self.mods_pressed.push(modifier);
+                                new_key = true;
+                            }
+                            _ => {}
+                        }
+                    } else if !self.keys_pressed.contains(&key) {
                         self.keys_pressed.push(key);
                         new_key = true;
                     }
                 }
                 if new_key {
-                    println!("Keys: {:?}", self.keys_pressed);
                     if let Some(keybind) = self.check_for_keybind() {
                         if let Ok(command) = command::denormalize(&keybind.command) {
                             let _ = command.execute(self);
@@ -136,20 +156,16 @@ impl Worker {
             .iter()
             .find(|keybind| {
                 if let Some(key) = keysym_lookup::into_key(&keybind.key) {
-                    let modifiers = keysym_lookup::into_keys(&keybind.modifier);
-                    let keys: Vec<EV_KEY> =
-                        modifiers.into_iter().chain(std::iter::once(key)).collect();
-                    return keys.iter().all(|key| self.keys_pressed.contains(key));
+                    let modifiers = keysym_lookup::into_mods(&keybind.modifier);
+                    let matching = modifiers.is_empty() && self.mods_pressed.is_empty()
+                        || (!self.mods_pressed.is_empty()
+                            && self.mods_pressed.iter().all(|m| modifiers.contains(m)))
+                            && (!modifiers.is_empty()
+                                && modifiers.iter().all(|m| self.mods_pressed.contains(m)));
+                    return self.keys_pressed == vec![key] && matching;
                 }
                 false
             })
             .cloned()
     }
-    //
-    // fn handle_mapping_notify(&self, event: &mut xlib::XMappingEvent) -> Error {
-    //     if event.request == xlib::MappingModifier || event.request == xlib::MappingKeyboard {
-    //         return self.xwrap.refresh_keyboard(event);
-    //     }
-    //     Ok(())
-    // }
 }

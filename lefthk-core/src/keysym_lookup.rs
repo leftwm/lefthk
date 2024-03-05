@@ -1,5 +1,34 @@
 use evdev_rs::enums::EV_KEY;
 
+#[allow(non_camel_case_types)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum MOD_MASK {
+    MASK_SHIFT,
+    MASK_CTRL,
+    MASK_ALT,
+    MASK_META,
+    MASK_CAPSLOCK,
+    MASK_NUMLOCK,
+    MASK_SCROLLLOCK,
+}
+
+impl TryFrom<EV_KEY> for MOD_MASK {
+    type Error = ();
+
+    fn try_from(key: EV_KEY) -> Result<Self, ()> {
+        match key {
+            EV_KEY::KEY_LEFTSHIFT | EV_KEY::KEY_RIGHTSHIFT => Ok(Self::MASK_SHIFT),
+            EV_KEY::KEY_LEFTCTRL | EV_KEY::KEY_RIGHTCTRL => Ok(Self::MASK_CTRL),
+            EV_KEY::KEY_LEFTALT | EV_KEY::KEY_RIGHTALT => Ok(Self::MASK_ALT),
+            EV_KEY::KEY_LEFTMETA | EV_KEY::KEY_RIGHTMETA => Ok(Self::MASK_META),
+            EV_KEY::KEY_CAPSLOCK => Ok(Self::MASK_CAPSLOCK),
+            EV_KEY::KEY_NUMLOCK => Ok(Self::MASK_NUMLOCK),
+            EV_KEY::KEY_SCROLLLOCK => Ok(Self::MASK_SCROLLLOCK),
+            _ => Err(()),
+        }
+    }
+}
+
 pub fn is_modifier(key: &EV_KEY) -> bool {
     matches!(
         key,
@@ -15,6 +44,29 @@ pub fn is_modifier(key: &EV_KEY) -> bool {
             | EV_KEY::KEY_NUMLOCK
             | EV_KEY::KEY_SCROLLLOCK
     )
+}
+
+pub fn into_mods(keys: &[String]) -> Vec<MOD_MASK> {
+    let mut result = Vec::new();
+    for key in keys {
+        if let Some(key) = into_mod(key) {
+            result.push(key);
+        }
+    }
+    result
+}
+
+pub fn into_mod(key: &str) -> Option<MOD_MASK> {
+    match key {
+        "Shift" => Some(MOD_MASK::MASK_SHIFT),
+        "Ctrl" => Some(MOD_MASK::MASK_CTRL),
+        "Alt" => Some(MOD_MASK::MASK_ALT),
+        "Meta" => Some(MOD_MASK::MASK_META),
+        "Capslock" => Some(MOD_MASK::MASK_CAPSLOCK),
+        "Numlock" => Some(MOD_MASK::MASK_NUMLOCK),
+        "Scrolllock" => Some(MOD_MASK::MASK_SCROLLLOCK),
+        _ => None,
+    }
 }
 
 pub fn into_keys(keys: &[String]) -> Vec<EV_KEY> {
@@ -48,41 +100,41 @@ pub fn into_key(key: &str) -> Option<EV_KEY> {
         "Equal" => Some(EV_KEY::KEY_EQUAL),
         "Backspace" => Some(EV_KEY::KEY_BACKSPACE),
         "Tab" => Some(EV_KEY::KEY_TAB),
-        "Q" => Some(EV_KEY::KEY_Q),
-        "W" => Some(EV_KEY::KEY_W),
-        "E" => Some(EV_KEY::KEY_E),
-        "R" => Some(EV_KEY::KEY_R),
-        "T" => Some(EV_KEY::KEY_T),
-        "Y" => Some(EV_KEY::KEY_Y),
-        "U" => Some(EV_KEY::KEY_U),
-        "I" => Some(EV_KEY::KEY_I),
-        "O" => Some(EV_KEY::KEY_O),
-        "P" => Some(EV_KEY::KEY_P),
+        "q" => Some(EV_KEY::KEY_Q),
+        "w" => Some(EV_KEY::KEY_W),
+        "e" => Some(EV_KEY::KEY_E),
+        "r" => Some(EV_KEY::KEY_R),
+        "t" => Some(EV_KEY::KEY_T),
+        "y" => Some(EV_KEY::KEY_Y),
+        "u" => Some(EV_KEY::KEY_U),
+        "i" => Some(EV_KEY::KEY_I),
+        "o" => Some(EV_KEY::KEY_O),
+        "p" => Some(EV_KEY::KEY_P),
         "Leftbrace" => Some(EV_KEY::KEY_LEFTBRACE),
         "Rightbrace" => Some(EV_KEY::KEY_RIGHTBRACE),
         "Enter" => Some(EV_KEY::KEY_ENTER),
         "Leftctrl" => Some(EV_KEY::KEY_LEFTCTRL),
-        "A" => Some(EV_KEY::KEY_A),
-        "S" => Some(EV_KEY::KEY_S),
-        "D" => Some(EV_KEY::KEY_D),
-        "F" => Some(EV_KEY::KEY_F),
-        "G" => Some(EV_KEY::KEY_G),
-        "H" => Some(EV_KEY::KEY_H),
-        "J" => Some(EV_KEY::KEY_J),
-        "K" => Some(EV_KEY::KEY_K),
-        "L" => Some(EV_KEY::KEY_L),
+        "a" => Some(EV_KEY::KEY_A),
+        "s" => Some(EV_KEY::KEY_S),
+        "d" => Some(EV_KEY::KEY_D),
+        "f" => Some(EV_KEY::KEY_F),
+        "g" => Some(EV_KEY::KEY_G),
+        "h" => Some(EV_KEY::KEY_H),
+        "j" => Some(EV_KEY::KEY_J),
+        "k" => Some(EV_KEY::KEY_K),
+        "l" => Some(EV_KEY::KEY_L),
         "Semicolon" => Some(EV_KEY::KEY_SEMICOLON),
         "Apostrophe" => Some(EV_KEY::KEY_APOSTROPHE),
         "Grave" => Some(EV_KEY::KEY_GRAVE),
         "Leftshift" => Some(EV_KEY::KEY_LEFTSHIFT),
         "Backslash" => Some(EV_KEY::KEY_BACKSLASH),
-        "Z" => Some(EV_KEY::KEY_Z),
-        "X" => Some(EV_KEY::KEY_X),
-        "C" => Some(EV_KEY::KEY_C),
-        "V" => Some(EV_KEY::KEY_V),
-        "B" => Some(EV_KEY::KEY_B),
-        "N" => Some(EV_KEY::KEY_N),
-        "M" => Some(EV_KEY::KEY_M),
+        "z" => Some(EV_KEY::KEY_Z),
+        "x" => Some(EV_KEY::KEY_X),
+        "c" => Some(EV_KEY::KEY_C),
+        "v" => Some(EV_KEY::KEY_V),
+        "b" => Some(EV_KEY::KEY_B),
+        "n" => Some(EV_KEY::KEY_N),
+        "m" => Some(EV_KEY::KEY_M),
         "Comma" => Some(EV_KEY::KEY_COMMA),
         "Dot" => Some(EV_KEY::KEY_DOT),
         "Slash" => Some(EV_KEY::KEY_SLASH),
