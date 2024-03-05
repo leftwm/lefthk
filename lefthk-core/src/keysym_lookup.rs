@@ -1,5 +1,32 @@
 use evdev_rs::enums::EV_KEY;
 
+pub fn is_modifier(key: &EV_KEY) -> bool {
+    matches!(
+        key,
+        EV_KEY::KEY_LEFTSHIFT
+            | EV_KEY::KEY_RIGHTSHIFT
+            | EV_KEY::KEY_LEFTCTRL
+            | EV_KEY::KEY_RIGHTCTRL
+            | EV_KEY::KEY_LEFTALT
+            | EV_KEY::KEY_RIGHTALT
+            | EV_KEY::KEY_LEFTMETA
+            | EV_KEY::KEY_RIGHTMETA
+            | EV_KEY::KEY_CAPSLOCK
+            | EV_KEY::KEY_NUMLOCK
+            | EV_KEY::KEY_SCROLLLOCK
+    )
+}
+
+pub fn into_keys(keys: &[String]) -> Vec<EV_KEY> {
+    let mut result = Vec::new();
+    for key in keys {
+        if let Some(key) = into_key(key) {
+            result.push(key);
+        }
+    }
+    result
+}
+
 // We allow this because this function is simply a mapping wrapper.
 #[allow(clippy::too_many_lines)]
 #[must_use]
@@ -422,9 +449,6 @@ pub fn into_key(key: &str) -> Option<EV_KEY> {
         "Kbd_layout_next" => Some(EV_KEY::KEY_KBD_LAYOUT_NEXT),
         "Emoji_picker" => Some(EV_KEY::KEY_EMOJI_PICKER),
         "Dictate" => Some(EV_KEY::KEY_DICTATE),
-        "Camera_access_enable" => Some(EV_KEY::KEY_CAMERA_ACCESS_ENABLE),
-        "Camera_access_disable" => Some(EV_KEY::KEY_CAMERA_ACCESS_DISABLE),
-        "Camera_access_toggle" => Some(EV_KEY::KEY_CAMERA_ACCESS_TOGGLE),
         "Brightness_min" => Some(EV_KEY::KEY_BRIGHTNESS_MIN),
         "Brightness_max" => Some(EV_KEY::KEY_BRIGHTNESS_MAX),
         "Kbdinputassist_prev" => Some(EV_KEY::KEY_KBDINPUTASSIST_PREV),
@@ -454,21 +478,6 @@ pub fn into_key(key: &str) -> Option<EV_KEY> {
         "Onscreen_keyboard" => Some(EV_KEY::KEY_ONSCREEN_KEYBOARD),
         "Privacy_screen_toggle" => Some(EV_KEY::KEY_PRIVACY_SCREEN_TOGGLE),
         "Selective_screenshot" => Some(EV_KEY::KEY_SELECTIVE_SCREENSHOT),
-        "Next_element" => Some(EV_KEY::KEY_NEXT_ELEMENT),
-        "Previous_element" => Some(EV_KEY::KEY_PREVIOUS_ELEMENT),
-        "Autopilot_engage_toggle" => Some(EV_KEY::KEY_AUTOPILOT_ENGAGE_TOGGLE),
-        "Mark_waypoint" => Some(EV_KEY::KEY_MARK_WAYPOINT),
-        "Sos" => Some(EV_KEY::KEY_SOS),
-        "Nav_chart" => Some(EV_KEY::KEY_NAV_CHART),
-        "Fishing_chart" => Some(EV_KEY::KEY_FISHING_CHART),
-        "Single_range_radar" => Some(EV_KEY::KEY_SINGLE_RANGE_RADAR),
-        "Dual_range_radar" => Some(EV_KEY::KEY_DUAL_RANGE_RADAR),
-        "Radar_overlay" => Some(EV_KEY::KEY_RADAR_OVERLAY),
-        "Traditional_sonar" => Some(EV_KEY::KEY_TRADITIONAL_SONAR),
-        "Clearvu_sonar" => Some(EV_KEY::KEY_CLEARVU_SONAR),
-        "Sidevu_sonar" => Some(EV_KEY::KEY_SIDEVU_SONAR),
-        "Nav_info" => Some(EV_KEY::KEY_NAV_INFO),
-        "Brightness_menu" => Some(EV_KEY::KEY_BRIGHTNESS_MENU),
         "Macro1" => Some(EV_KEY::KEY_MACRO1),
         "Macro2" => Some(EV_KEY::KEY_MACRO2),
         "Macro3" => Some(EV_KEY::KEY_MACRO3),
