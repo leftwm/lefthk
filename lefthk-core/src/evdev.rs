@@ -1,4 +1,5 @@
 use evdev_rs::{Device, DeviceWrapper, InputEvent, ReadFlag, ReadStatus};
+use std::future::poll_fn;
 use std::os::fd::AsRawFd;
 use std::path::PathBuf;
 use std::{collections::HashMap, ffi::OsStr};
@@ -52,7 +53,7 @@ impl EvDev {
     pub fn add_device(&mut self, path: PathBuf) {
         tracing::info!("Adding device with path: {:?}", path);
         if let Some(device) = device_with_path(path.clone()) {
-            let (guard, task_guard) = oneshot::channel();
+            let (mut guard, task_guard) = oneshot::channel();
             let transmitter = self.task_transmitter.clone();
             const SERVER: mio::Token = mio::Token(0);
             let fd = device.file().as_raw_fd();
@@ -65,12 +66,7 @@ impl EvDev {
             ));
 
             tokio::task::spawn(async move {
-                loop {
-                    if guard.is_closed() {
-                        println!("Bye");
-                        return;
-                    }
-
+                while !guard.is_closed() {
                     if let Err(err) = poll.poll(&mut events, None) {
                         tracing::warn!("Evdev device poll failed with {:?}", err);
                         continue;
@@ -81,18 +77,22 @@ impl EvDev {
                             Ok((ReadStatus::Success, event)) => {
                                 transmitter.send(Task::KeyboardEvent(event)).await.unwrap();
                             }
-                            Err(_) => break,
+                            Err(_) => {
+                                poll_fn(|cx| guard.poll_closed(cx)).await;
+                                break;
+                            }
                             _ => {}
                         }
                     }
                 }
+                tracing::info!("Device loop has closed.");
             });
             self.task_guards.insert(path, task_guard);
         }
     }
     pub fn remove_device(&mut self, path: PathBuf) {
         tracing::info!("Removing device with path: {:?}", path);
-        drop(self.task_guards.remove(&path));
+        self.task_guards.remove(&path);
     }
 }
 
@@ -152,11 +152,7 @@ impl KeyboardWatcher {
             poll.registry()
                 .register(&mut socket, SERVER, mio::Interest::READABLE)
                 .expect("Failed to register");
-            loop {
-                if guard.is_closed() {
-                    println!("Bye");
-                    return;
-                }
+            while !guard.is_closed() {
                 if let Err(err) = poll.poll(&mut events, None) {
                     tracing::warn!("KeyboardWatcher poll failed with {:?}", err);
                     continue;
