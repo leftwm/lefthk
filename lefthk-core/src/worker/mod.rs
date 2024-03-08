@@ -82,10 +82,10 @@ impl Worker {
                             self.handle_event(&event);
                         }
                         Task::KeyboardAdded(path) => {
-                            self.evdev.add_device(path.into());
+                            self.evdev.add_device(path);
                         }
                         Task::KeyboardRemoved(path) => {
-                            self.evdev.remove_device(path.into());
+                            self.evdev.remove_device(path);
                         }
                     }
                 }
