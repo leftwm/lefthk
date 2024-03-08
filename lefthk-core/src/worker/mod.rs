@@ -84,6 +84,9 @@ impl Worker {
                         Task::KeyboardAdded(path) => {
                             self.evdev.add_device(path.into());
                         }
+                        Task::KeyboardRemoved(path) => {
+                            self.evdev.remove_device(path.into());
+                        }
                     }
                 }
                 Some(command) = pipe.get_next_command() => {

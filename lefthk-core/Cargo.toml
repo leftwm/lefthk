@@ -9,8 +9,7 @@ description = "A hotkey daemon for Adventurers"
 
 [dependencies]
 evdev-rs = { version = "0.6.1", features = ["serde"] }
-input = "0.8"
-mio = "0.8.0"
+mio = "0.8.11"
 nix = { version = "0.27.1", features = ["fs", "signal"] }
 signal-hook = "0.3.4"
 thiserror = "1.0.30"
@@ -23,6 +22,7 @@ tokio = { version = "1.14.0", features = [
   "sync",
   "time",
 ] }
+udev = {version = "0.8.0", features = ["mio"] }
 xdg = "2.4.0"
 ron = "0.8.0"
 serde = { version = "1.0.145", features = ["derive"] }
