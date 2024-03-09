@@ -1,6 +1,18 @@
 use thiserror::Error;
 
-macro_rules! log_on_error {
+macro_rules! r#return {
+    ($a: expr) => {
+        match $a {
+            Ok(value) => value,
+            Err(err) => {
+                tracing::error!("{}", LeftError::from(err));
+                return;
+            }
+        }
+    };
+}
+
+macro_rules! log {
     ($a: expr) => {
         match $a {
             Ok(value) => value,
@@ -9,7 +21,7 @@ macro_rules! log_on_error {
     };
 }
 
-macro_rules! exit_on_error {
+macro_rules! exit {
     ($a: expr) => {
         match $a {
             Ok(value) => value,
@@ -21,8 +33,9 @@ macro_rules! exit_on_error {
     };
 }
 
-pub(crate) use exit_on_error;
-pub(crate) use log_on_error;
+pub(crate) use exit;
+pub(crate) use log;
+pub(crate) use r#return;
 
 pub type Result<T> = std::result::Result<T, LeftError>;
 pub type Error = std::result::Result<(), LeftError>;
@@ -48,6 +61,6 @@ pub enum LeftError {
     NoConfigFound,
     #[error("No value set for execution.")]
     ValueNotFound,
-    #[error("X failed status error.")]
-    XFailedStatus,
+    #[error("UInput device could not be found.")]
+    UInputNotFound,
 }

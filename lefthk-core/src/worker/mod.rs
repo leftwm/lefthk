@@ -1,5 +1,7 @@
 pub mod context;
 
+use std::path::PathBuf;
+
 use crate::child::Children;
 use crate::config::{command, Keybind};
 use crate::errors::{self, LeftError};
@@ -42,6 +44,8 @@ pub struct Worker {
 
     keys_pressed: Vec<EV_KEY>,
     mods_pressed: Vec<MOD_MASK>,
+    eaten_keys: Vec<EV_KEY>,
+    eaten_mods: Vec<MOD_MASK>,
 
     pub evdev: EvDev,
     pub children: Children,
@@ -59,6 +63,8 @@ impl Worker {
             base_directory,
             keys_pressed: Vec::new(),
             mods_pressed: Vec::new(),
+            eaten_keys: Vec::new(),
+            eaten_mods: Vec::new(),
             evdev: EvDev::default(),
             children: Children::default(),
             chord_ctx: context::Chord::new(),
@@ -78,8 +84,8 @@ impl Worker {
                 }
                 Some(task) = self.evdev.task_receiver.recv() => {
                     match task {
-                        Task::KeyboardEvent(event) => {
-                            self.handle_event(&event);
+                        Task::KeyboardEvent((path, event)) => {
+                            self.handle_event(path, &event);
                         }
                         Task::KeyboardAdded(path) => {
                             self.evdev.add_device(path);
@@ -90,7 +96,7 @@ impl Worker {
                     }
                 }
                 Some(command) = pipe.get_next_command() => {
-                    errors::log_on_error!(command.execute(&mut self));
+                    errors::log!(command.execute(&mut self));
                 }
             };
         }
@@ -100,21 +106,30 @@ impl Worker {
 
     async fn get_pipe(&self) -> Pipe {
         let pipe_name = Pipe::pipe_name();
-        let pipe_file = errors::exit_on_error!(self.base_directory.place_runtime_file(pipe_name));
-        errors::exit_on_error!(Pipe::new(pipe_file).await)
+        let pipe_file = errors::exit!(self.base_directory.place_runtime_file(pipe_name));
+        errors::exit!(Pipe::new(pipe_file).await)
     }
 
-    fn handle_event(&mut self, event: &InputEvent) {
+    fn handle_event(&mut self, path: PathBuf, event: &InputEvent) {
         let r#type = KeyEventType::from(event.value);
+        let mut eaten = false;
         match r#type {
             KeyEventType::Release => {
                 if let EventCode::EV_KEY(key) = event.event_code {
                     if is_modifier(&key) {
                         if let Ok(modifier) = key.try_into() {
                             self.mods_pressed.retain(|&m| m != modifier);
+                            if self.eaten_mods.contains(&modifier) {
+                                eaten = true;
+                                self.eaten_mods.retain(|&m| m != modifier);
+                            }
                         }
                     } else if let Some(index) = self.keys_pressed.iter().position(|&k| k == key) {
                         self.keys_pressed.remove(index);
+                        if self.eaten_keys.contains(&key) {
+                            eaten = true;
+                            self.eaten_keys.retain(|&k| k != key);
+                        }
                     }
                 }
             }
@@ -136,16 +151,33 @@ impl Worker {
                 }
                 if new_key {
                     if let Some(keybind) = self.check_for_keybind() {
+                        eaten = true;
+                        self.keys_pressed
+                            .iter()
+                            .for_each(|&key| self.eaten_keys.push(key));
+                        self.mods_pressed
+                            .iter()
+                            .for_each(|&key| self.eaten_mods.push(key));
                         if let Ok(command) = command::denormalize(&keybind.command) {
                             let _ = command.execute(self);
                         } else {
-                            errors::log_on_error!(Err(LeftError::CommandNotFound));
+                            errors::log!(Err(LeftError::CommandNotFound));
                         }
                     }
                 }
             }
-            KeyEventType::Repeat => {}
-            KeyEventType::Unknown => {}
+            KeyEventType::Repeat | KeyEventType::Unknown => {}
+        }
+        if !eaten {
+            self.pass_event(path, event);
+        }
+    }
+
+    fn pass_event(&self, path: PathBuf, event: &InputEvent) {
+        // println!("Passing event: {:?}", event);
+        match self.evdev.devices.get(&path) {
+            Some(device) => errors::log!(device.write_event(event)),
+            None => errors::log!(Err(LeftError::UInputNotFound)),
         }
     }
 

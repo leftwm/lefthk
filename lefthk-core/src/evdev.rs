@@ -1,4 +1,4 @@
-use evdev_rs::{Device, DeviceWrapper, InputEvent, ReadFlag, ReadStatus};
+use evdev_rs::{Device, DeviceWrapper, InputEvent, ReadFlag, ReadStatus, UInputDevice};
 use std::future::poll_fn;
 use std::os::fd::AsRawFd;
 use std::path::PathBuf;
@@ -9,12 +9,13 @@ use crate::errors::{self, LeftError};
 
 #[derive(Debug)]
 pub enum Task {
-    KeyboardEvent(InputEvent),
+    KeyboardEvent((PathBuf, InputEvent)),
     KeyboardAdded(PathBuf),
     KeyboardRemoved(PathBuf),
 }
 
 pub struct EvDev {
+    pub devices: HashMap<PathBuf, UInputDevice>,
     pub task_receiver: mpsc::Receiver<Task>,
     task_transmitter: mpsc::Sender<Task>,
     task_guards: HashMap<PathBuf, oneshot::Receiver<()>>,
@@ -23,21 +24,23 @@ pub struct EvDev {
 
 impl Default for EvDev {
     fn default() -> Self {
+        let devices: HashMap<PathBuf, UInputDevice> = HashMap::new();
+
         let (task_transmitter, task_receiver) = mpsc::channel(128);
 
         let keyboard_watcher = KeyboardWatcher::new(task_transmitter.clone());
 
         let task_guards: HashMap<PathBuf, oneshot::Receiver<()>> = HashMap::new();
 
-        let devices = find_keyboards();
-
         let mut evdev = EvDev {
+            devices,
             task_receiver,
             task_transmitter,
             task_guards,
             _keyboard_watcher: keyboard_watcher,
         };
-        match devices {
+
+        match find_keyboards() {
             Some(devices) => {
                 for device in devices {
                     evdev.add_device(device);
@@ -45,6 +48,7 @@ impl Default for EvDev {
             }
             None => tracing::warn!("No devices found on intialization."),
         }
+
         evdev
     }
 }
@@ -52,19 +56,23 @@ impl Default for EvDev {
 impl EvDev {
     pub fn add_device(&mut self, path: PathBuf) {
         tracing::info!("Adding device with path: {:?}", path);
-        if let Some(device) = device_with_path(path.clone()) {
+        if let Some(mut device) = device_with_path(path.clone()) {
+            device.set_name(&format!("LeftHK virtual input for {:?}", path));
+            let uinput = errors::r#return!(UInputDevice::create_from_device(&device));
+            errors::r#return!(device.grab(evdev_rs::GrabMode::Grab));
+
             let (mut guard, task_guard) = oneshot::channel();
             let transmitter = self.task_transmitter.clone();
             const SERVER: mio::Token = mio::Token(0);
             let fd = device.file().as_raw_fd();
-            let mut poll = errors::exit_on_error!(mio::Poll::new());
+            let mut poll = errors::exit!(mio::Poll::new());
             let mut events = mio::Events::with_capacity(1);
-            errors::exit_on_error!(poll.registry().register(
+            errors::exit!(poll.registry().register(
                 &mut mio::unix::SourceFd(&fd),
                 SERVER,
                 mio::Interest::READABLE,
             ));
-
+            let p = path.clone();
             tokio::task::spawn(async move {
                 while !guard.is_closed() {
                     if let Err(err) = poll.poll(&mut events, None) {
@@ -73,9 +81,12 @@ impl EvDev {
                     }
 
                     while device.has_event_pending() {
-                        match device.next_event(ReadFlag::NORMAL | ReadFlag::BLOCKING) {
+                        match device.next_event(ReadFlag::NORMAL) {
                             Ok((ReadStatus::Success, event)) => {
-                                transmitter.send(Task::KeyboardEvent(event)).await.unwrap();
+                                transmitter
+                                    .send(Task::KeyboardEvent((p.clone(), event)))
+                                    .await
+                                    .unwrap();
                             }
                             Err(_) => {
                                 poll_fn(|cx| guard.poll_closed(cx)).await;
@@ -86,13 +97,17 @@ impl EvDev {
                     }
                 }
                 tracing::info!("Device loop has closed.");
+                errors::r#return!(device.grab(evdev_rs::GrabMode::Ungrab));
             });
+
+            self.devices.insert(path.clone(), uinput);
             self.task_guards.insert(path, task_guard);
         }
     }
     pub fn remove_device(&mut self, path: PathBuf) {
         tracing::info!("Removing device with path: {:?}", path);
         self.task_guards.remove(&path);
+        self.devices.remove(&path);
     }
 }
 
@@ -160,6 +175,18 @@ impl KeyboardWatcher {
 
                 for e in socket.iter() {
                     let device = e.device();
+                    // for property in device.properties() {
+                    //     tracing::info!("Property: {:?}, {:?}", property.name(), property.value());
+                    // }
+                    if device
+                        .property_value("NAME")
+                        .unwrap_or(OsStr::new(""))
+                        .to_str()
+                        .unwrap_or("")
+                        .contains("LeftHK")
+                    {
+                        continue;
+                    }
                     let is_keyboard = device
                         .property_value("ID_INPUT_KEYBOARD")
                         .unwrap_or(OsStr::new("0"))
