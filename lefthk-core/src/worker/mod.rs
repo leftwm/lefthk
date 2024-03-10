@@ -62,7 +62,7 @@ impl Worker {
             mods_pressed: Vec::new(),
             eaten_keys: Vec::new(),
             eaten_mods: Vec::new(),
-            evdev: EvDev::default(),
+            evdev: errors::exit!(EvDev::new()),
             children: Children::default(),
             chord_ctx: context::Chord::new(),
         }
@@ -85,7 +85,7 @@ impl Worker {
                             self.handle_event(event);
                         }
                         Task::KeyboardAdded(path) => {
-                            self.evdev.add_device(path);
+                            errors::log!(self.evdev.add_device(path));
                         }
                         Task::KeyboardRemoved(path) => {
                             self.evdev.remove_device(path);

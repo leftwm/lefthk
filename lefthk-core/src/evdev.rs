@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::{collections::HashMap, ffi::OsStr};
 use tokio::sync::{mpsc, oneshot};
 
-use crate::errors::{self, LeftError};
+use crate::errors::{self, LeftError, Result};
 
 #[derive(Debug)]
 pub enum Task {
@@ -21,37 +21,9 @@ pub struct EvDev {
     _keyboard_watcher: KeyboardWatcher,
 }
 
-impl Default for EvDev {
-    fn default() -> Self {
-        let keys = AttributeSet::from_iter(
-            (Key::KEY_RESERVED.code()..Key::BTN_TRIGGER_HAPPY40.code()).map(Key::new),
-        );
-        let relative_axes = evdev::AttributeSet::from_iter([
-            RelativeAxisType::REL_WHEEL,
-            RelativeAxisType::REL_HWHEEL,
-            RelativeAxisType::REL_X,
-            RelativeAxisType::REL_Y,
-            RelativeAxisType::REL_Z,
-            RelativeAxisType::REL_RX,
-            RelativeAxisType::REL_RY,
-            RelativeAxisType::REL_RZ,
-            RelativeAxisType::REL_DIAL,
-            RelativeAxisType::REL_MISC,
-            RelativeAxisType::REL_WHEEL_HI_RES,
-            RelativeAxisType::REL_HWHEEL_HI_RES,
-        ]);
-
-        let builder = errors::exit!(VirtualDeviceBuilder::new());
-
-        let device = builder
-            .name("LeftHK Virtual Keyboard")
-            .input_id(InputId::new(BusType::BUS_I8042, 1, 1, 1))
-            .with_keys(&keys)
-            .unwrap()
-            .with_relative_axes(&relative_axes)
-            .unwrap()
-            .build()
-            .unwrap();
+impl EvDev {
+    pub fn new() -> Result<Self> {
+        let device = generate_device().map_err(|_| LeftError::VirtualDeviceCreationFailed)?;
 
         let (task_transmitter, task_receiver) = mpsc::channel(128);
 
@@ -70,52 +42,88 @@ impl Default for EvDev {
         match find_keyboards() {
             Some(devices) => {
                 for device in devices {
-                    evdev.add_device(device);
+                    errors::log!(evdev.add_device(device));
                 }
             }
             None => tracing::warn!("No devices found on intialization."),
         }
 
-        evdev
+        Ok(evdev)
     }
-}
 
-impl EvDev {
-    pub fn add_device(&mut self, path: PathBuf) {
-        tracing::info!("Adding device with path: {:?}", path);
-        if let Ok(mut device) = Device::open(path.clone()) {
-            wait_for_all_keys_unpressed(&device);
-            errors::r#return!(device.grab());
-            errors::r#return!(device.ungrab());
-            errors::r#return!(device.grab());
+    pub fn add_device(&mut self, path: PathBuf) -> Result<()> {
+        let p = path.clone();
+        let path_str = p.to_str().ok_or(LeftError::PathToStrError)?;
+        tracing::info!("Adding device with path: {:?}", path_str);
+        let mut device = Device::open(path.clone())
+            .map_err(|_| LeftError::DeviceOpenFailed(path_str.to_owned()))?;
+        wait_for_keys_to_unpress(&device);
+        device
+            .grab()
+            .map_err(|_| LeftError::DeviceGrabFailed(path_str.to_owned()))?;
+        device
+            .ungrab()
+            .map_err(|_| LeftError::DeviceUngrabFailed(path_str.to_owned()))?;
+        device
+            .grab()
+            .map_err(|_| LeftError::DeviceGrabFailed(path_str.to_owned()))?;
 
-            let (guard, task_guard) = oneshot::channel();
-            let transmitter = self.task_transmitter.clone();
+        let (guard, task_guard) = oneshot::channel();
+        let transmitter = self.task_transmitter.clone();
 
-            let mut stream = errors::r#return!(device.into_event_stream());
-            tokio::task::spawn(async move {
-                while !guard.is_closed() {
-                    match stream.next_event().await {
-                        Ok(event) => {
-                            transmitter.send(Task::KeyboardEvent(event)).await.unwrap();
-                        }
-                        Err(err) => {
-                            tracing::warn!("Evdev device stream failed with {:?}", err);
-                            break;
-                        }
+        let mut stream = device.into_event_stream()?;
+        tokio::task::spawn(async move {
+            while !guard.is_closed() {
+                match stream.next_event().await {
+                    Ok(event) => {
+                        transmitter.send(Task::KeyboardEvent(event)).await.unwrap();
+                    }
+                    Err(err) => {
+                        tracing::warn!("Evdev device stream failed with {:?}", err);
+                        break;
                     }
                 }
-                tracing::info!("Device loop has closed.");
-                errors::r#return!(stream.device_mut().ungrab());
-            });
+            }
+            tracing::info!("Closing loop for device {:?}.", p);
+            errors::r#return!(stream.device_mut().ungrab());
+        });
 
-            self.task_guards.insert(path, task_guard);
-        }
+        self.task_guards.insert(path, task_guard);
+        Ok(())
     }
+
     pub fn remove_device(&mut self, path: PathBuf) {
         tracing::info!("Removing device with path: {:?}", path);
         self.task_guards.remove(&path);
     }
+}
+
+fn generate_device() -> Result<VirtualDevice> {
+    let keys = AttributeSet::from_iter(
+        (Key::KEY_RESERVED.code()..Key::BTN_TRIGGER_HAPPY40.code()).map(Key::new),
+    );
+
+    let relative_axes = evdev::AttributeSet::from_iter([
+        RelativeAxisType::REL_WHEEL,
+        RelativeAxisType::REL_HWHEEL,
+        RelativeAxisType::REL_X,
+        RelativeAxisType::REL_Y,
+        RelativeAxisType::REL_Z,
+        RelativeAxisType::REL_RX,
+        RelativeAxisType::REL_RY,
+        RelativeAxisType::REL_RZ,
+        RelativeAxisType::REL_DIAL,
+        RelativeAxisType::REL_MISC,
+        RelativeAxisType::REL_WHEEL_HI_RES,
+        RelativeAxisType::REL_HWHEEL_HI_RES,
+    ]);
+
+    Ok(VirtualDeviceBuilder::new()?
+        .name("LeftHK Virtual Keyboard")
+        .input_id(InputId::new(BusType::BUS_USB, 0x1234, 0x5678, 0x111))
+        .with_keys(&keys)?
+        .with_relative_axes(&relative_axes)?
+        .build()?)
 }
 
 fn find_keyboards() -> Option<Vec<PathBuf>> {
@@ -142,7 +150,7 @@ fn find_keyboards() -> Option<Vec<PathBuf>> {
     Some(devices)
 }
 
-fn wait_for_all_keys_unpressed(device: &Device) {
+fn wait_for_keys_to_unpress(device: &Device) {
     let mut pending_release = false;
     loop {
         match device.get_key_state() {

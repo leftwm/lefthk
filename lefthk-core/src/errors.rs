@@ -49,6 +49,15 @@ pub enum LeftError {
     #[error("XDG error: {0}.")]
     XdgBaseDirError(#[from] xdg::BaseDirectoriesError),
 
+    #[error("Failed to open device {0}.")]
+    DeviceOpenFailed(String),
+    #[error("Failed to grab device {0}.")]
+    DeviceGrabFailed(String),
+    #[error("Failed to ungrab device {0}.")]
+    DeviceUngrabFailed(String),
+
+    #[error("Path could not be converted to str.")]
+    PathToStrError,
     #[error("Given String doesn't match with a command.")]
     UnmatchingCommand,
     #[error("No command found for keybind.")]
@@ -61,6 +70,6 @@ pub enum LeftError {
     NoConfigFound,
     #[error("No value set for execution.")]
     ValueNotFound,
-    #[error("UInput device could not be found.")]
-    UInputNotFound,
+    #[error("Failed to create virtual device, please check that your permissions are setup. (TODO: link to setup page).")]
+    VirtualDeviceCreationFailed,
 }
