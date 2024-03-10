@@ -8,7 +8,7 @@ repository = "https://github.com/leftwm/lefthk"
 description = "A hotkey daemon for Adventurers"
 
 [dependencies]
-evdev-rs = { version = "0.6.1", features = ["serde"] }
+evdev = { version = "0.12.1", features = ["tokio"] }
 mio = "0.8.11"
 nix = { version = "0.27.1", features = ["fs", "signal"] }
 signal-hook = "0.3.4"

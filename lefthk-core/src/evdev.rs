@@ -1,6 +1,5 @@
-use evdev_rs::{Device, DeviceWrapper, InputEvent, ReadFlag, ReadStatus, UInputDevice};
-use std::future::poll_fn;
-use std::os::fd::AsRawFd;
+use evdev::uinput::{VirtualDevice, VirtualDeviceBuilder};
+use evdev::{AttributeSet, BusType, Device, InputEvent, InputId, Key, RelativeAxisType};
 use std::path::PathBuf;
 use std::{collections::HashMap, ffi::OsStr};
 use tokio::sync::{mpsc, oneshot};
@@ -15,7 +14,7 @@ pub enum Task {
 }
 
 pub struct EvDev {
-    pub devices: HashMap<PathBuf, UInputDevice>,
+    pub device: VirtualDevice,
     pub task_receiver: mpsc::Receiver<Task>,
     task_transmitter: mpsc::Sender<Task>,
     task_guards: HashMap<PathBuf, oneshot::Receiver<()>>,
@@ -24,7 +23,39 @@ pub struct EvDev {
 
 impl Default for EvDev {
     fn default() -> Self {
-        let devices: HashMap<PathBuf, UInputDevice> = HashMap::new();
+        let keys = AttributeSet::from_iter(
+            (Key::KEY_RESERVED.code()..Key::BTN_TRIGGER_HAPPY40.code()).map(Key::new),
+        );
+        let relative_axes = evdev::AttributeSet::from_iter([
+            RelativeAxisType::REL_WHEEL,
+            RelativeAxisType::REL_HWHEEL,
+            RelativeAxisType::REL_X,
+            RelativeAxisType::REL_Y,
+            RelativeAxisType::REL_Z,
+            RelativeAxisType::REL_RX,
+            RelativeAxisType::REL_RY,
+            RelativeAxisType::REL_RZ,
+            RelativeAxisType::REL_DIAL,
+            RelativeAxisType::REL_MISC,
+            RelativeAxisType::REL_WHEEL_HI_RES,
+            RelativeAxisType::REL_HWHEEL_HI_RES,
+        ]);
+
+        let builder = errors::exit!(VirtualDeviceBuilder::new());
+
+        let mut device = builder
+            .name("LeftHK Virtual Keyboard")
+            .input_id(InputId::new(BusType::BUS_I8042, 1, 1, 1))
+            .with_keys(&keys)
+            .unwrap()
+            .with_relative_axes(&relative_axes)
+            .unwrap()
+            .build()
+            .unwrap();
+        println!("Device: {:?}", device.get_syspath());
+
+        let devnode = device.enumerate_dev_nodes_blocking().unwrap().next();
+        println!("Devnode: {:?}", devnode);
 
         let (task_transmitter, task_receiver) = mpsc::channel(128);
 
@@ -33,7 +64,7 @@ impl Default for EvDev {
         let task_guards: HashMap<PathBuf, oneshot::Receiver<()>> = HashMap::new();
 
         let mut evdev = EvDev {
-            devices,
+            device,
             task_receiver,
             task_transmitter,
             task_guards,
@@ -56,58 +87,43 @@ impl Default for EvDev {
 impl EvDev {
     pub fn add_device(&mut self, path: PathBuf) {
         tracing::info!("Adding device with path: {:?}", path);
-        if let Some(mut device) = device_with_path(path.clone()) {
-            device.set_name(&format!("LeftHK virtual input for {:?}", path));
-            let uinput = errors::r#return!(UInputDevice::create_from_device(&device));
-            errors::r#return!(device.grab(evdev_rs::GrabMode::Grab));
+        if let Ok(mut device) = Device::open(path.clone()) {
+            wait_for_all_keys_unpressed(&device);
+            errors::r#return!(device.grab());
+            errors::r#return!(device.ungrab());
+            errors::r#return!(device.grab());
 
-            let (mut guard, task_guard) = oneshot::channel();
+            let (guard, task_guard) = oneshot::channel();
             let transmitter = self.task_transmitter.clone();
-            const SERVER: mio::Token = mio::Token(0);
-            let fd = device.file().as_raw_fd();
-            let mut poll = errors::exit!(mio::Poll::new());
-            let mut events = mio::Events::with_capacity(1);
-            errors::exit!(poll.registry().register(
-                &mut mio::unix::SourceFd(&fd),
-                SERVER,
-                mio::Interest::READABLE,
-            ));
+
+            let mut stream = errors::r#return!(device.into_event_stream());
             let p = path.clone();
             tokio::task::spawn(async move {
                 while !guard.is_closed() {
-                    if let Err(err) = poll.poll(&mut events, None) {
-                        tracing::warn!("Evdev device poll failed with {:?}", err);
-                        continue;
-                    }
-
-                    while device.has_event_pending() {
-                        match device.next_event(ReadFlag::NORMAL) {
-                            Ok((ReadStatus::Success, event)) => {
-                                transmitter
-                                    .send(Task::KeyboardEvent((p.clone(), event)))
-                                    .await
-                                    .unwrap();
-                            }
-                            Err(_) => {
-                                poll_fn(|cx| guard.poll_closed(cx)).await;
-                                break;
-                            }
-                            _ => {}
+                    match stream.next_event().await {
+                        Ok(event) => {
+                            transmitter
+                                .send(Task::KeyboardEvent((p.clone(), event)))
+                                .await
+                                .unwrap();
+                        }
+                        Err(err) => {
+                            tracing::warn!("Evdev device stream failed with {:?}", err);
+                            // poll_fn(|cx| guard.poll_closed(cx)).await;
+                            break;
                         }
                     }
                 }
                 tracing::info!("Device loop has closed.");
-                errors::r#return!(device.grab(evdev_rs::GrabMode::Ungrab));
+                errors::r#return!(stream.device_mut().ungrab());
             });
 
-            self.devices.insert(path.clone(), uinput);
             self.task_guards.insert(path, task_guard);
         }
     }
     pub fn remove_device(&mut self, path: PathBuf) {
         tracing::info!("Removing device with path: {:?}", path);
         self.task_guards.remove(&path);
-        self.devices.remove(&path);
     }
 }
 
@@ -135,14 +151,17 @@ fn find_keyboards() -> Option<Vec<PathBuf>> {
     Some(devices)
 }
 
-fn device_with_path(path: PathBuf) -> Option<Device> {
-    let device = Device::new_from_path(path).ok()?;
-    if device.has(evdev_rs::enums::EventType::EV_KEY)
-        && device.phys().unwrap_or("").contains("input0")
-    {
-        return Some(device);
+fn wait_for_all_keys_unpressed(device: &Device) {
+    let mut pending_release = false;
+    loop {
+        match device.get_key_state() {
+            Ok(keys) if keys.iter().count() > 0 => pending_release = true,
+            _ => break,
+        }
     }
-    None
+    if pending_release {
+        std::thread::sleep(std::time::Duration::from_micros(100));
+    }
 }
 
 #[derive(Debug)]

@@ -8,8 +8,7 @@ use crate::errors::{self, LeftError};
 use crate::evdev::{EvDev, Task};
 use crate::ipc::Pipe;
 use crate::keysym_lookup::{self, is_modifier, MOD_MASK};
-use evdev_rs::enums::{EventCode, EV_KEY};
-use evdev_rs::InputEvent;
+use evdev::{EventType, InputEvent, InputEventKind, Key};
 use xdg::BaseDirectories;
 
 #[derive(Clone, Copy, Debug)]
@@ -42,9 +41,9 @@ pub struct Worker {
     keybinds: Vec<Keybind>,
     base_directory: BaseDirectories,
 
-    keys_pressed: Vec<EV_KEY>,
+    keys_pressed: Vec<Key>,
     mods_pressed: Vec<MOD_MASK>,
-    eaten_keys: Vec<EV_KEY>,
+    eaten_keys: Vec<Key>,
     eaten_mods: Vec<MOD_MASK>,
 
     pub evdev: EvDev,
@@ -85,7 +84,7 @@ impl Worker {
                 Some(task) = self.evdev.task_receiver.recv() => {
                     match task {
                         Task::KeyboardEvent((path, event)) => {
-                            self.handle_event(path, &event);
+                            self.handle_event(path, event);
                         }
                         Task::KeyboardAdded(path) => {
                             self.evdev.add_device(path);
@@ -110,12 +109,12 @@ impl Worker {
         errors::exit!(Pipe::new(pipe_file).await)
     }
 
-    fn handle_event(&mut self, path: PathBuf, event: &InputEvent) {
-        let r#type = KeyEventType::from(event.value);
+    fn handle_event(&mut self, path: PathBuf, event: InputEvent) {
+        let r#type = KeyEventType::from(event.value());
         let mut eaten = false;
         match r#type {
             KeyEventType::Release => {
-                if let EventCode::EV_KEY(key) = event.event_code {
+                if let InputEventKind::Key(key) = event.kind() {
                     if is_modifier(&key) {
                         if let Ok(modifier) = key.try_into() {
                             self.mods_pressed.retain(|&m| m != modifier);
@@ -135,7 +134,7 @@ impl Worker {
             }
             KeyEventType::Press => {
                 let mut new_key = false;
-                if let EventCode::EV_KEY(key) = event.event_code {
+                if let InputEventKind::Key(key) = event.kind() {
                     if is_modifier(&key) {
                         match key.try_into() {
                             Ok(modifier) if !self.mods_pressed.contains(&modifier) => {
@@ -173,12 +172,31 @@ impl Worker {
         }
     }
 
-    fn pass_event(&self, path: PathBuf, event: &InputEvent) {
-        // println!("Passing event: {:?}", event);
-        match self.evdev.devices.get(&path) {
-            Some(device) => errors::log!(device.write_event(event)),
-            None => errors::log!(Err(LeftError::UInputNotFound)),
+    fn pass_event(&mut self, _path: PathBuf, event: InputEvent) {
+        match self.evdev.device.emit(&[event]) {
+            Ok(_) => {
+                tracing::debug!("Successfully sent event: {:?}", event);
+            }
+            Err(err) => {
+                tracing::warn!("Failed to pass event: {:?}", err);
+            }
         }
+        let code = Key::KEY_K.code();
+        let down_event = InputEvent::new(EventType::KEY, code, 1);
+        self.evdev.device.emit(&[down_event]).unwrap();
+        println!("Pressed.");
+        // sleep(Duration::from_secs(2));
+
+        // alternativeley we can create a InputEvent, which will be any variant of InputEvent
+        // depending on the type_ value
+        let up_event = InputEvent::new(EventType::KEY, code, 0);
+        self.evdev.device.emit(&[up_event]).unwrap();
+        println!("Released.");
+        // sleep(Duration::from_secs(2));
+        // match self.evdev.devices.get(&path) {
+        //     Some(device) => errors::log!(device.write_event(event)),
+        //     None => errors::log!(Err(LeftError::UInputNotFound)),
+        // }
     }
 
     fn check_for_keybind(&self) -> Option<Keybind> {
