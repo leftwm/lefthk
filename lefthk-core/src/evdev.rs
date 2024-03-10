@@ -8,7 +8,7 @@ use crate::errors::{self, LeftError};
 
 #[derive(Debug)]
 pub enum Task {
-    KeyboardEvent((PathBuf, InputEvent)),
+    KeyboardEvent(InputEvent),
     KeyboardAdded(PathBuf),
     KeyboardRemoved(PathBuf),
 }
@@ -43,7 +43,7 @@ impl Default for EvDev {
 
         let builder = errors::exit!(VirtualDeviceBuilder::new());
 
-        let mut device = builder
+        let device = builder
             .name("LeftHK Virtual Keyboard")
             .input_id(InputId::new(BusType::BUS_I8042, 1, 1, 1))
             .with_keys(&keys)
@@ -52,10 +52,6 @@ impl Default for EvDev {
             .unwrap()
             .build()
             .unwrap();
-        println!("Device: {:?}", device.get_syspath());
-
-        let devnode = device.enumerate_dev_nodes_blocking().unwrap().next();
-        println!("Devnode: {:?}", devnode);
 
         let (task_transmitter, task_receiver) = mpsc::channel(128);
 
@@ -97,19 +93,14 @@ impl EvDev {
             let transmitter = self.task_transmitter.clone();
 
             let mut stream = errors::r#return!(device.into_event_stream());
-            let p = path.clone();
             tokio::task::spawn(async move {
                 while !guard.is_closed() {
                     match stream.next_event().await {
                         Ok(event) => {
-                            transmitter
-                                .send(Task::KeyboardEvent((p.clone(), event)))
-                                .await
-                                .unwrap();
+                            transmitter.send(Task::KeyboardEvent(event)).await.unwrap();
                         }
                         Err(err) => {
                             tracing::warn!("Evdev device stream failed with {:?}", err);
-                            // poll_fn(|cx| guard.poll_closed(cx)).await;
                             break;
                         }
                     }

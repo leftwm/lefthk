@@ -1,14 +1,12 @@
 pub mod context;
 
-use std::path::PathBuf;
-
 use crate::child::Children;
 use crate::config::{command, Keybind};
 use crate::errors::{self, LeftError};
 use crate::evdev::{EvDev, Task};
 use crate::ipc::Pipe;
 use crate::keysym_lookup::{self, is_modifier, MOD_MASK};
-use evdev::{EventType, InputEvent, InputEventKind, Key};
+use evdev::{InputEvent, InputEventKind, Key};
 use xdg::BaseDirectories;
 
 #[derive(Clone, Copy, Debug)]
@@ -83,8 +81,8 @@ impl Worker {
                 }
                 Some(task) = self.evdev.task_receiver.recv() => {
                     match task {
-                        Task::KeyboardEvent((path, event)) => {
-                            self.handle_event(path, event);
+                        Task::KeyboardEvent(event) => {
+                            self.handle_event(event);
                         }
                         Task::KeyboardAdded(path) => {
                             self.evdev.add_device(path);
@@ -109,7 +107,7 @@ impl Worker {
         errors::exit!(Pipe::new(pipe_file).await)
     }
 
-    fn handle_event(&mut self, path: PathBuf, event: InputEvent) {
+    fn handle_event(&mut self, event: InputEvent) {
         let r#type = KeyEventType::from(event.value());
         let mut eaten = false;
         match r#type {
@@ -168,35 +166,8 @@ impl Worker {
             KeyEventType::Repeat | KeyEventType::Unknown => {}
         }
         if !eaten {
-            self.pass_event(path, event);
+            let _ = self.evdev.device.emit(&[event]);
         }
-    }
-
-    fn pass_event(&mut self, _path: PathBuf, event: InputEvent) {
-        match self.evdev.device.emit(&[event]) {
-            Ok(_) => {
-                tracing::debug!("Successfully sent event: {:?}", event);
-            }
-            Err(err) => {
-                tracing::warn!("Failed to pass event: {:?}", err);
-            }
-        }
-        let code = Key::KEY_K.code();
-        let down_event = InputEvent::new(EventType::KEY, code, 1);
-        self.evdev.device.emit(&[down_event]).unwrap();
-        println!("Pressed.");
-        // sleep(Duration::from_secs(2));
-
-        // alternativeley we can create a InputEvent, which will be any variant of InputEvent
-        // depending on the type_ value
-        let up_event = InputEvent::new(EventType::KEY, code, 0);
-        self.evdev.device.emit(&[up_event]).unwrap();
-        println!("Released.");
-        // sleep(Duration::from_secs(2));
-        // match self.evdev.devices.get(&path) {
-        //     Some(device) => errors::log!(device.write_event(event)),
-        //     None => errors::log!(Err(LeftError::UInputNotFound)),
-        // }
     }
 
     fn check_for_keybind(&self) -> Option<Keybind> {
