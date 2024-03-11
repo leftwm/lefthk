@@ -32,7 +32,7 @@ impl Command for Chord {
     }
 
     fn execute(&self, worker: &mut Worker) -> Error {
-        worker.xwrap.grab_keys(&self.0);
+        // worker.xwrap.grab_keys(&self.0);
         worker.chord_ctx.keybinds = Some(self.0.clone());
         Ok(())
     }

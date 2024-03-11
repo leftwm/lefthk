@@ -2,12 +2,31 @@ pub mod context;
 
 use crate::child::Children;
 use crate::config::{command, Keybind};
-use crate::errors::{self, Error, LeftError};
+use crate::errors::{self, LeftError};
+use crate::evdev::{EvDev, Task};
 use crate::ipc::Pipe;
-use crate::xkeysym_lookup;
-use crate::xwrap::XWrap;
-use x11_dl::xlib;
+use crate::keysym_lookup::{self, is_modifier, MOD_MASK};
+use evdev::{InputEvent, InputEventKind, Key};
 use xdg::BaseDirectories;
+
+#[derive(Clone, Copy, Debug)]
+enum KeyEventType {
+    Release,
+    Press,
+    Repeat,
+    Unknown,
+}
+
+impl From<i32> for KeyEventType {
+    fn from(value: i32) -> Self {
+        match value {
+            0 => Self::Release,
+            1 => Self::Press,
+            2 => Self::Repeat,
+            _ => Self::Unknown,
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Status {
@@ -20,7 +39,12 @@ pub struct Worker {
     keybinds: Vec<Keybind>,
     base_directory: BaseDirectories,
 
-    pub xwrap: XWrap,
+    keys_pressed: Vec<Key>,
+    mods_pressed: Vec<MOD_MASK>,
+    eaten_keys: Vec<Key>,
+    eaten_mods: Vec<MOD_MASK>,
+
+    pub evdev: EvDev,
     pub children: Children,
     pub status: Status,
 
@@ -34,34 +58,42 @@ impl Worker {
             status: Status::Continue,
             keybinds,
             base_directory,
-            xwrap: XWrap::new(),
+            keys_pressed: Vec::new(),
+            mods_pressed: Vec::new(),
+            eaten_keys: Vec::new(),
+            eaten_mods: Vec::new(),
+            evdev: errors::exit!(EvDev::new()),
             children: Children::default(),
             chord_ctx: context::Chord::new(),
         }
     }
 
     pub async fn event_loop(mut self) -> Status {
-        self.xwrap.grab_keys(&self.keybinds);
         let mut pipe = self.get_pipe().await;
 
         while self.status == Status::Continue {
-            self.xwrap.flush();
-
             self.evaluate_chord();
 
             tokio::select! {
                 () = self.children.wait_readable() => {
+                    println!("Reaping children");
                     self.children.reap();
                 }
-                () = self.xwrap.wait_readable() => {
-                    let event_in_queue = self.xwrap.queue_len();
-                    for _ in 0..event_in_queue {
-                        let xlib_event = self.xwrap.get_next_event();
-                        self.handle_event(&xlib_event);
+                Some(task) = self.evdev.task_receiver.recv() => {
+                    match task {
+                        Task::KeyboardEvent(event) => {
+                            self.handle_event(event);
+                        }
+                        Task::KeyboardAdded(path) => {
+                            errors::log!(self.evdev.add_device(path));
+                        }
+                        Task::KeyboardRemoved(path) => {
+                            self.evdev.remove_device(path);
+                        }
                     }
                 }
                 Some(command) = pipe.get_next_command() => {
-                    errors::log_on_error!(command.execute(&mut self));
+                    errors::log!(command.execute(&mut self));
                 }
             };
         }
@@ -71,35 +103,74 @@ impl Worker {
 
     async fn get_pipe(&self) -> Pipe {
         let pipe_name = Pipe::pipe_name();
-        let pipe_file = errors::exit_on_error!(self.base_directory.place_runtime_file(pipe_name));
-        errors::exit_on_error!(Pipe::new(pipe_file).await)
+        let pipe_file = errors::exit!(self.base_directory.place_runtime_file(pipe_name));
+        errors::exit!(Pipe::new(pipe_file).await)
     }
 
-    fn handle_event(&mut self, xlib_event: &xlib::XEvent) {
-        let error = match xlib_event.get_type() {
-            xlib::KeyPress => self.handle_key_press(&xlib::XKeyEvent::from(xlib_event)),
-            xlib::MappingNotify => {
-                self.handle_mapping_notify(&mut xlib::XMappingEvent::from(xlib_event))
+    fn handle_event(&mut self, event: InputEvent) {
+        let r#type = KeyEventType::from(event.value());
+        let mut eaten = false;
+        match r#type {
+            KeyEventType::Release => {
+                if let InputEventKind::Key(key) = event.kind() {
+                    if is_modifier(&key) {
+                        if let Ok(modifier) = key.try_into() {
+                            self.mods_pressed.retain(|&m| m != modifier);
+                            if self.eaten_mods.contains(&modifier) {
+                                eaten = true;
+                                self.eaten_mods.retain(|&m| m != modifier);
+                            }
+                        }
+                    } else if let Some(index) = self.keys_pressed.iter().position(|&k| k == key) {
+                        self.keys_pressed.remove(index);
+                        if self.eaten_keys.contains(&key) {
+                            eaten = true;
+                            self.eaten_keys.retain(|&k| k != key);
+                        }
+                    }
+                }
             }
-            _ => return,
-        };
-        errors::log_on_error!(error);
-    }
-
-    fn handle_key_press(&mut self, event: &xlib::XKeyEvent) -> Error {
-        let key = self.xwrap.keycode_to_keysym(event.keycode);
-        let mask = xkeysym_lookup::clean_mask(event.state);
-        if let Some(keybind) = self.get_keybind((mask, key)) {
-            if let Ok(command) = command::denormalize(&keybind.command) {
-                return command.execute(self);
+            KeyEventType::Press => {
+                let mut new_key = false;
+                if let InputEventKind::Key(key) = event.kind() {
+                    if is_modifier(&key) {
+                        match key.try_into() {
+                            Ok(modifier) if !self.mods_pressed.contains(&modifier) => {
+                                self.mods_pressed.push(modifier);
+                                new_key = true;
+                            }
+                            _ => {}
+                        }
+                    } else if !self.keys_pressed.contains(&key) {
+                        self.keys_pressed.push(key);
+                        new_key = true;
+                    }
+                }
+                if new_key {
+                    if let Some(keybind) = self.check_for_keybind() {
+                        eaten = true;
+                        self.keys_pressed
+                            .iter()
+                            .for_each(|&key| self.eaten_keys.push(key));
+                        self.mods_pressed
+                            .iter()
+                            .for_each(|&key| self.eaten_mods.push(key));
+                        if let Ok(command) = command::denormalize(&keybind.command) {
+                            let _ = command.execute(self);
+                        } else {
+                            errors::log!(Err(LeftError::CommandNotFound));
+                        }
+                    }
+                }
             }
-        } else {
-            return Err(LeftError::CommandNotFound);
+            KeyEventType::Repeat | KeyEventType::Unknown => {}
         }
-        Ok(())
+        if !eaten {
+            let _ = self.evdev.device.emit(&[event]);
+        }
     }
 
-    fn get_keybind(&self, mask_key_pair: (u32, u32)) -> Option<Keybind> {
+    fn check_for_keybind(&self) -> Option<Keybind> {
         let keybinds = if let Some(keybinds) = &self.chord_ctx.keybinds {
             keybinds
         } else {
@@ -108,19 +179,17 @@ impl Worker {
         keybinds
             .iter()
             .find(|keybind| {
-                if let Some(key) = xkeysym_lookup::into_keysym(&keybind.key) {
-                    let mask = xkeysym_lookup::into_modmask(&keybind.modifier);
-                    return mask_key_pair == (mask, key);
+                if let Some(key) = keysym_lookup::into_key(&keybind.key) {
+                    let modifiers = keysym_lookup::into_mods(&keybind.modifier);
+                    let matching = modifiers.is_empty() && self.mods_pressed.is_empty()
+                        || (!self.mods_pressed.is_empty()
+                            && self.mods_pressed.iter().all(|m| modifiers.contains(m)))
+                            && (!modifiers.is_empty()
+                                && modifiers.iter().all(|m| self.mods_pressed.contains(m)));
+                    return self.keys_pressed == vec![key] && matching;
                 }
                 false
             })
             .cloned()
-    }
-
-    fn handle_mapping_notify(&self, event: &mut xlib::XMappingEvent) -> Error {
-        if event.request == xlib::MappingModifier || event.request == xlib::MappingKeyboard {
-            return self.xwrap.refresh_keyboard(event);
-        }
-        Ok(())
     }
 }

@@ -18,7 +18,7 @@ impl Chord {
 impl Worker {
     pub fn evaluate_chord(&mut self) {
         if self.chord_ctx.elapsed {
-            self.xwrap.grab_keys(&self.keybinds);
+            // self.xwrap.grab_keys(&self.keybinds);
             self.chord_ctx.keybinds = None;
             self.chord_ctx.elapsed = false;
         }

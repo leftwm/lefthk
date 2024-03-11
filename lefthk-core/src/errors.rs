@@ -1,6 +1,18 @@
 use thiserror::Error;
 
-macro_rules! log_on_error {
+macro_rules! r#return {
+    ($a: expr) => {
+        match $a {
+            Ok(value) => value,
+            Err(err) => {
+                tracing::error!("{}", LeftError::from(err));
+                return;
+            }
+        }
+    };
+}
+
+macro_rules! log {
     ($a: expr) => {
         match $a {
             Ok(value) => value,
@@ -9,7 +21,7 @@ macro_rules! log_on_error {
     };
 }
 
-macro_rules! exit_on_error {
+macro_rules! exit {
     ($a: expr) => {
         match $a {
             Ok(value) => value,
@@ -21,8 +33,9 @@ macro_rules! exit_on_error {
     };
 }
 
-pub(crate) use exit_on_error;
-pub(crate) use log_on_error;
+pub(crate) use exit;
+pub(crate) use log;
+pub(crate) use r#return;
 
 pub type Result<T> = std::result::Result<T, LeftError>;
 pub type Error = std::result::Result<(), LeftError>;
@@ -33,11 +46,18 @@ pub enum LeftError {
     IoError(#[from] std::io::Error),
     #[error("Nix errno: {0}.")]
     NixErrno(#[from] nix::errno::Errno),
-    #[error("Xlib error: {0}.")]
-    XlibError(#[from] x11_dl::error::OpenError),
     #[error("XDG error: {0}.")]
     XdgBaseDirError(#[from] xdg::BaseDirectoriesError),
 
+    #[error("Failed to open device {0}.")]
+    DeviceOpenFailed(String),
+    #[error("Failed to grab device {0}.")]
+    DeviceGrabFailed(String),
+    #[error("Failed to ungrab device {0}.")]
+    DeviceUngrabFailed(String),
+
+    #[error("Path could not be converted to str.")]
+    PathToStrError,
     #[error("Given String doesn't match with a command.")]
     UnmatchingCommand,
     #[error("No command found for keybind.")]
@@ -50,6 +70,6 @@ pub enum LeftError {
     NoConfigFound,
     #[error("No value set for execution.")]
     ValueNotFound,
-    #[error("X failed status error.")]
-    XFailedStatus,
+    #[error("Failed to create virtual device, please check that your permissions are setup. (TODO: link to setup page).")]
+    VirtualDeviceCreationFailed,
 }

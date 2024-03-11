@@ -70,7 +70,7 @@ pub fn load() -> Result<Config> {
     let file_name = path.place_config_file("config.ron")?;
     if Path::new(&file_name).exists() {
         let contents = fs::read_to_string(file_name)?;
-        Config::try_from(contents)?;
+        return Config::try_from(contents);
     }
     Err(LeftError::NoConfigFound)
 }
