@@ -51,6 +51,10 @@ impl EvDev {
         Ok(evdev)
     }
 
+    /// Start up a task for the device at the given path.
+    /// # Errors
+    ///
+    /// Errors if the device cannot be opened, grabbed, or if the stream cannot be started.
     pub fn add_device(&mut self, path: PathBuf) -> Result<()> {
         let p = path.clone();
         let path_str = p.to_str().ok_or(LeftError::PathToStrError)?;
@@ -92,12 +96,17 @@ impl EvDev {
         Ok(())
     }
 
+    /// Remove the device at the given path.
     pub fn remove_device(&mut self, path: PathBuf) {
         tracing::info!("Removing device with path: {:?}", path);
         self.task_guards.remove(&path);
     }
 }
 
+/// Generate a virtual device.
+/// # Errors
+///
+/// Errors if the device cannot be built.
 fn generate_device() -> Result<VirtualDevice> {
     // Can't enable more keys due to wayland/kde
     let keys = AttributeSet::from_iter(
@@ -127,6 +136,7 @@ fn generate_device() -> Result<VirtualDevice> {
         .build()?)
 }
 
+/// Find the keyboards on the system.
 fn find_keyboards() -> Option<Vec<PathBuf>> {
     let mut devices = vec![];
     let mut enumerator = udev::Enumerator::new().ok()?;
@@ -151,6 +161,8 @@ fn find_keyboards() -> Option<Vec<PathBuf>> {
     Some(devices)
 }
 
+/// Wait for keys to be unpress.
+/// This is necessary because the device is grabbed and we need to wait for the keys to be unpressed before we can grab it.
 fn wait_for_keys_to_unpress(device: &Device) {
     let mut pending_release = false;
     loop {
@@ -169,6 +181,7 @@ struct KeyboardWatcher {
     _task_guard: oneshot::Receiver<()>,
 }
 
+/// Watch for keyboards being added or removed.
 impl KeyboardWatcher {
     pub fn new(task_transmitter: mpsc::Sender<Task>) -> Self {
         let (guard, task_guard) = oneshot::channel();
@@ -194,9 +207,6 @@ impl KeyboardWatcher {
 
                 for e in socket.iter() {
                     let device = e.device();
-                    // for property in device.properties() {
-                    //     tracing::info!("Property: {:?}, {:?}", property.name(), property.value());
-                    // }
                     if device
                         .property_value("NAME")
                         .unwrap_or(OsStr::new(""))
