@@ -99,8 +99,9 @@ impl EvDev {
 }
 
 fn generate_device() -> Result<VirtualDevice> {
+    // Can't enable more keys due to wayland/kde
     let keys = AttributeSet::from_iter(
-        (Key::KEY_RESERVED.code()..Key::BTN_TRIGGER_HAPPY40.code()).map(Key::new),
+        (Key::KEY_RESERVED.code()..Key::KEY_ALS_TOGGLE.code()).map(Key::new),
     );
 
     let relative_axes = evdev::AttributeSet::from_iter([
