@@ -72,7 +72,7 @@ pub fn load() -> Result<Config> {
         return Err(LeftError::NoConfigFound);
     }
     let contents = fs::read_to_string(file_name)?;
-    Ok(Config::try_from(contents)?)
+    Config::try_from(contents)
 }
 
 fn propagate_exit_chord(chords: Vec<&mut Keybind>, exit_chord: &Option<Keybind>) {
