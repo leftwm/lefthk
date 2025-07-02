@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 macro_rules! log_on_error {
-    ($a: expr) => {
+    ($a: expr_2021) => {
         match $a {
             Ok(value) => value,
             Err(err) => tracing::error!("{}", LeftError::from(err)),
@@ -10,7 +10,7 @@ macro_rules! log_on_error {
 }
 
 macro_rules! exit_on_error {
-    ($a: expr) => {
+    ($a: expr_2021) => {
         match $a {
             Ok(value) => value,
             Err(err) => {

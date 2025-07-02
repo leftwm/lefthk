@@ -1,7 +1,7 @@
 use crate::errors::LeftError;
-use clap::{App, Arg};
+use clap::{Arg, Command as ClapCommand};
 use lefthk_core::{
-    config::{command, Command, Config},
+    config::{Command, Config, command},
     ipc::Pipe,
     worker::{Status, Worker},
 };
@@ -33,8 +33,7 @@ fn main() {
         send_command(&command::Reload::new());
     } else {
         let mut old_config = None;
-        let path =
-            errors::exit_on_error!(BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME));
+        let path = BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME);
         loop {
             let config = match config::load() {
                 Ok(config) => config,
@@ -70,23 +69,23 @@ fn main() {
 }
 
 fn send_command(command: &impl Command) {
-    let path = errors::exit_on_error!(BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME));
+    let path = BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME);
     let pipe_name = Pipe::pipe_name();
     let pipe_file = errors::exit_on_error!(path.place_runtime_file(pipe_name));
     let mut pipe = fs::OpenOptions::new().write(true).open(pipe_file).unwrap();
     writeln!(pipe, "{}", command.normalize()).unwrap();
 }
 
-fn get_app() -> App<'static> {
+fn get_app() -> ClapCommand {
     clap::command!()
         .arg(
-            Arg::with_name(QUIT_COMMAND)
+            Arg::new(QUIT_COMMAND)
                 .short('q')
                 .long(QUIT_COMMAND)
                 .help("Quit a running daemon instance"),
         )
         .arg(
-            Arg::with_name(RELOAD_COMMAND)
+            Arg::new(RELOAD_COMMAND)
                 .short('r')
                 .long(RELOAD_COMMAND)
                 .help("Reload daemon to apply changes to config"),

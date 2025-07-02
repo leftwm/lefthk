@@ -1,8 +1,8 @@
 /// Config Testing
 #[cfg(test)]
 mod config {
-    use lefthk_core::config::command::utils::normalized_command::NormalizedCommand;
     use lefthk_core::config::Config;
+    use lefthk_core::config::command::utils::normalized_command::NormalizedCommand;
 
     use crate::config::Config as Cfg;
 

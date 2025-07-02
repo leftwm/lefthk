@@ -6,7 +6,7 @@ use std::os::raw::{c_int, c_ulong};
 use std::pin::Pin;
 use std::ptr;
 use std::sync::Arc;
-use tokio::sync::{oneshot, Notify};
+use tokio::sync::{Notify, oneshot};
 use tokio::time::Duration;
 use x11_dl::xlib;
 
@@ -48,20 +48,22 @@ impl XWrap {
             mio::Interest::READABLE,
         ));
         let timeout = Duration::from_millis(100);
-        tokio::task::spawn_blocking(move || loop {
-            if guard.is_closed() {
-                return;
-            }
+        tokio::task::spawn_blocking(move || {
+            loop {
+                if guard.is_closed() {
+                    return;
+                }
 
-            if let Err(err) = poll.poll(&mut events, Some(timeout)) {
-                tracing::warn!("Xlib socket poll failed with {:?}", err);
-                continue;
-            }
+                if let Err(err) = poll.poll(&mut events, Some(timeout)) {
+                    tracing::warn!("Xlib socket poll failed with {:?}", err);
+                    continue;
+                }
 
-            events
-                .iter()
-                .filter(|event| SERVER == event.token())
-                .for_each(|_| notify.notify_one());
+                events
+                    .iter()
+                    .filter(|event| SERVER == event.token())
+                    .for_each(|_| notify.notify_one());
+            }
         });
         let root = unsafe { (xlib.XDefaultRootWindow)(display) };
 

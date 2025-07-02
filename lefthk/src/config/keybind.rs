@@ -1,13 +1,13 @@
 use crate::errors::{LeftError, Result};
 use lefthk_core::config::{
-    command as command_mod, Command as core_command, Keybind as core_keybind,
+    Command as core_command, Keybind as core_keybind, command as command_mod,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::config::{command::Command, key::Key};
 
 macro_rules! get_key {
-    ($expr:expr $(,)?) => {
+    ($expr:expr_2021 $(,)?) => {
         match $expr {
             Key::Key(key) => key,
             Key::Keys(_) => return Err(LeftError::SingleKeyNeeded),
@@ -16,7 +16,7 @@ macro_rules! get_key {
 }
 
 macro_rules! get_keys {
-    ($expr:expr $(,)?) => {
+    ($expr:expr_2021 $(,)?) => {
         match $expr {
             Key::Key(_) => return Err(LeftError::MultipleKeysNeeded),
             Key::Keys(keys) => keys,

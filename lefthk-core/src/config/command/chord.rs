@@ -2,7 +2,7 @@ use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    config::{command::utils::denormalize_function::DenormalizeCommandFunction, Keybind},
+    config::{Keybind, command::utils::denormalize_function::DenormalizeCommandFunction},
     errors::Error,
     worker::Worker,
 };
@@ -44,7 +44,7 @@ impl Command for Chord {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{command::Reload, Command, Keybind};
+    use crate::config::{Command, Keybind, command::Reload};
 
     use super::Chord;
 
@@ -62,9 +62,7 @@ mod tests {
         assert_eq!(
             Box::new(command.clone()),
             denormalized,
-            "{:?}, {:?}",
-            command,
-            denormalized,
+            "{command:?}, {denormalized:?}",
         );
     }
 }
