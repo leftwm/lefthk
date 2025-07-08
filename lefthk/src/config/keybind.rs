@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::config::{command::Command, key::Key};
 
+// TODO: Replace with expr_2024
 macro_rules! get_key {
     ($expr:expr_2021 $(,)?) => {
         match $expr {
@@ -15,6 +16,7 @@ macro_rules! get_key {
     };
 }
 
+// TODO: Replace with expr_2024
 macro_rules! get_keys {
     ($expr:expr_2021 $(,)?) => {
         match $expr {
