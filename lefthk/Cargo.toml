@@ -1,20 +1,21 @@
 [package]
 name = "lefthk"
-version = "0.2.2"
-edition = "2021"
+version = "0.3.0"
+edition = "2024"
+rust-version = "1.85.0" # MSRV MINIMUM SUPPORTED RUST VERSION
 license = "BSD-3-Clause"
 readme = "README.md"
 repository = "https://github.com/leftwm/lefthk"
 description = "A hotkey daemon for Adventurers"
 
 [dependencies]
-clap = {version = "3.2.20", features = ["cargo"]}
-lefthk-core = { path = "../lefthk-core", version = '0.2' }
-ron = "0.8"
+clap = {version = "4.5.40", features = ["cargo"]}
+lefthk-core = { path = "../lefthk-core", version = '0.3' }
+ron = "0.10.1"
 serde = { version = "1.0", features = ["derive"] }
-thiserror = "1.0.30"
+thiserror = "2.0.12"
 tokio = { version = "1.14.0", features = ["rt-multi-thread"] }
-xdg = "2.4.0"
+xdg = "3.0.0"
 
 # logging
 tracing = "0.1.36"

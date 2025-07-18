@@ -17,8 +17,8 @@ mod ipc {
     use tokio::fs;
     use tokio::io::AsyncWriteExt;
 
-    use crate::config::command::Reload;
     use crate::config::Command;
+    use crate::config::command::Reload;
     use crate::ipc::Pipe;
 
     use super::test::temp_path;
@@ -36,7 +36,7 @@ mod ipc {
         let command = Reload::new();
 
         let normalized = command.normalize();
-        pipe.write_all(format!("{}\n", normalized).as_bytes())
+        pipe.write_all(format!("{normalized}\n").as_bytes())
             .await
             .unwrap();
         pipe.flush().await.unwrap();

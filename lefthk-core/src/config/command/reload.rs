@@ -57,9 +57,7 @@ mod tests {
         assert_eq!(
             Box::new(command.clone()),
             denormalized,
-            "{:?}, {:?}",
-            command,
-            denormalized
+            "{command:?}, {denormalized:?}",
         );
     }
 }

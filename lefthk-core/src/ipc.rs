@@ -1,6 +1,6 @@
+use crate::config::Command;
 use crate::config::command;
 use crate::config::command::utils::normalized_command::NormalizedCommand;
-use crate::config::Command;
 use crate::errors::Result;
 use std::path::{Path, PathBuf};
 use tokio::{
@@ -67,7 +67,7 @@ impl Pipe {
     }
 }
 
-async fn read_from_pipe<'a>(pipe_file: &Path, tx: &mpsc::UnboundedSender<NormalizedCommand>) {
+async fn read_from_pipe(pipe_file: &Path, tx: &mpsc::UnboundedSender<NormalizedCommand>) {
     if let Ok(file) = fs::File::open(pipe_file).await {
         let mut lines = BufReader::new(file).lines();
 

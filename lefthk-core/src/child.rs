@@ -7,7 +7,7 @@ use std::{collections::HashMap, future::Future};
 
 use signal_hook::consts::signal;
 use signal_hook::iterator::Signals;
-use tokio::sync::{oneshot, Notify};
+use tokio::sync::{Notify, oneshot};
 
 /// A struct managing children processes.
 ///
@@ -37,14 +37,16 @@ impl Children {
         let task_notify = Arc::new(Notify::new());
         let notify = task_notify.clone();
         let mut signals = Signals::new([signal::SIGCHLD]).expect("Couldn't setup signals.");
-        tokio::task::spawn_blocking(move || loop {
-            if guard.is_closed() {
-                return;
+        tokio::task::spawn_blocking(move || {
+            loop {
+                if guard.is_closed() {
+                    return;
+                }
+                for _ in signals.pending() {
+                    notify.notify_one();
+                }
+                std::thread::sleep(Duration::from_millis(100));
             }
-            for _ in signals.pending() {
-                notify.notify_one();
-            }
-            std::thread::sleep(Duration::from_millis(100));
         });
 
         Self {

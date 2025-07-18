@@ -1,7 +1,7 @@
 pub mod context;
 
 use crate::child::Children;
-use crate::config::{command, Keybind};
+use crate::config::{Keybind, command};
 use crate::errors::{self, Error, LeftError};
 use crate::ipc::Pipe;
 use crate::xkeysym_lookup;

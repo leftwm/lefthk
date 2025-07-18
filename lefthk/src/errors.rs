@@ -1,7 +1,8 @@
 use thiserror::Error;
 
+// TODO: replace with expr 2024
 macro_rules! return_on_error {
-    ($a: expr) => {
+    ($a: expr_2021) => {
         match $a {
             Ok(value) => value,
             Err(err) => {
@@ -12,8 +13,9 @@ macro_rules! return_on_error {
     };
 }
 
+// TODO: replace with expr 2024
 macro_rules! exit_on_error {
-    ($a: expr) => {
+    ($a: expr_2021) => {
         match $a {
             Ok(value) => value,
             Err(err) => {
@@ -41,10 +43,12 @@ pub enum LeftError {
     #[error("XDG error: {0}.")]
     XdgBaseDirError(#[from] xdg::BaseDirectoriesError),
 
-    #[error("No chrildren found for chord.")]
+    #[error("No children found for chord.")]
     ChildrenNotFound,
     #[error("No command found for keybind.")]
     CommandNotFound,
+    #[error("Creation of home config failed.")]
+    ConfigPlaceFailed,
     #[error("No key found for keybind.")]
     KeyNotFound,
     #[error("No modifier found for keybind.")]

@@ -65,8 +65,8 @@ impl TryFrom<String> for Config {
 ///
 /// This errors, when no Config is found at the path
 pub fn load() -> Result<Config> {
-    let path = BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME)?;
-    fs::create_dir_all(path.get_config_home())?;
+    let path = BaseDirectories::with_prefix(lefthk_core::LEFTHK_DIR_NAME);
+    fs::create_dir_all(path.get_config_home().ok_or(LeftError::ConfigPlaceFailed)?)?;
     let file_name = path.place_config_file("config.ron")?;
     if !Path::new(&file_name).exists() {
         return Err(LeftError::NoConfigFound);
@@ -79,7 +79,7 @@ fn propagate_exit_chord(chords: Vec<&mut Keybind>, exit_chord: &Option<Keybind>)
     for chord in chords {
         if let Command::Chord(children) = &mut chord.command {
             if !children.iter().any(|kb| kb.command == Command::ExitChord) {
-                if let Some(ref exit_chord) = exit_chord {
+                if let Some(exit_chord) = exit_chord {
                     children.push(exit_chord.clone());
                 }
             }
