@@ -11,7 +11,7 @@ description = "A hotkey daemon for Adventurers"
 [dependencies]
 clap = {version = "4.5.40", features = ["cargo"]}
 lefthk-core = { path = "../lefthk-core", version = '0.3' }
-ron = "0.10.1"
+ron = "0.11.0"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0.12"
 tokio = { version = "1.14.0", features = ["rt-multi-thread"] }
