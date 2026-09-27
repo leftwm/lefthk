@@ -33,7 +33,7 @@ impl Command for Execute {
     }
 
     fn execute(&self, worker: &mut Worker) -> Error {
-        worker.chord_ctx.elapsed = worker.chord_ctx.keybinds.is_some();
+        worker.chord_ctx.elapsed = worker.chord_ctx.sf_keybinds.is_some();
         let child = std::process::Command::new("sh")
             .arg("-c")
             .arg(&self.0)

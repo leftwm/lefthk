@@ -44,8 +44,6 @@ pub enum LeftError {
 
     #[error("Given String doesn't match with a command.")]
     UnmatchingCommand,
-    #[error("No command found for keybind.")]
-    CommandNotFound,
     #[error("No key found for keybind.")]
     KeyNotFound,
     #[error("No modifier found for keybind.")]

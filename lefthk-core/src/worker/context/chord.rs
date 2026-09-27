@@ -1,8 +1,8 @@
-use crate::{config::Keybind, worker::Worker};
+use crate::worker::{StatefullKeybind, Worker};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Chord {
-    pub keybinds: Option<Vec<Keybind>>,
+    pub sf_keybinds: Option<Vec<StatefullKeybind>>,
     pub elapsed: bool,
 }
 
@@ -10,7 +10,7 @@ impl Chord {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            keybinds: None,
+            sf_keybinds: None,
             elapsed: false,
         }
     }
@@ -19,8 +19,8 @@ impl Chord {
 impl Worker {
     pub fn evaluate_chord(&mut self) {
         if self.chord_ctx.elapsed {
-            self.xwrap.grab_keys(&self.keybinds);
-            self.chord_ctx.keybinds = None;
+            self.xwrap.grab_keys(&self.sf_keybinds);
+            self.chord_ctx.sf_keybinds = None;
             self.chord_ctx.elapsed = false;
         }
     }
