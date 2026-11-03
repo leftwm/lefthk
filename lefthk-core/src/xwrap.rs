@@ -1,6 +1,7 @@
-use crate::config::Keybind;
 use crate::errors::{self, Error, LeftError};
+use crate::worker::StatefullKeybind;
 use crate::xkeysym_lookup;
+use std::collections::HashMap;
 use std::future::Future;
 use std::os::raw::{c_int, c_ulong};
 use std::pin::Pin;
@@ -16,6 +17,7 @@ pub struct XWrap {
     pub root: xlib::Window,
     pub task_notify: Arc<Notify>,
     _task_guard: oneshot::Receiver<()>,
+    pub modifier_mapping: HashMap<String, Vec<u32>>,
 }
 
 impl Default for XWrap {
@@ -78,12 +80,14 @@ impl XWrap {
         });
         let root = unsafe { (xlib.XDefaultRootWindow)(display) };
 
+        let modifier_mapping = HashMap::new();
         let xw = Self {
             xlib,
             display,
             root,
             task_notify,
             _task_guard: task_guard,
+            modifier_mapping,
         };
 
         // Setup cached keymap/modifier information, otherwise MappingNotify might never be called
@@ -106,17 +110,38 @@ impl XWrap {
         }
     }
 
+    /// Set `DetectableAutoRepeat` to catch press/release buttons
+    pub fn set_detectable_auto_repeat(&self) -> bool {
+        let mut detectable_autorepeat: c_int = c_int::from(false);
+        unsafe {
+            (self.xlib.XkbSetDetectableAutoRepeat)(
+                self.display,
+                c_int::from(true),
+                &raw mut detectable_autorepeat,
+            );
+        }
+        if detectable_autorepeat != 0 {
+            tracing::info!("Xserver activated detectable autorepeat correctly.");
+            true
+        } else {
+            tracing::warn!(
+                "Xserver could not activate detectable autorepeat. This feature will be disabled."
+            );
+            false
+        }
+    }
+
     /// Grabs a list of keybindings.
-    pub fn grab_keys(&self, keybinds: &[Keybind]) {
+    pub fn grab_keys(&self, sf_keybinds: &[StatefullKeybind]) {
         // Cleanup key grabs.
         unsafe {
             (self.xlib.XUngrabKey)(self.display, xlib::AnyKey, xlib::AnyModifier, self.root);
         }
 
         // Grab all the key combos from the config file.
-        for kb in keybinds {
-            if let Some(keysym) = xkeysym_lookup::into_keysym(&kb.key) {
-                let modmask = xkeysym_lookup::into_modmask(&kb.modifier);
+        for sf_kb in sf_keybinds {
+            if let Some(keysym) = xkeysym_lookup::into_keysym(&sf_kb.keybind.key) {
+                let modmask = xkeysym_lookup::into_modmask(&sf_kb.keybind.modifier);
                 self.grab_key(self.root, keysym, modmask);
             }
         }
@@ -150,12 +175,48 @@ impl XWrap {
     /// # Errors
     ///
     /// Will error if updating the keyboard failed.
-    pub fn refresh_keyboard(&self, evt: &mut xlib::XMappingEvent) -> Error {
+    pub fn refresh_keyboard(&mut self, evt: &mut xlib::XMappingEvent) -> Error {
         let status = unsafe { (self.xlib.XRefreshKeyboardMapping)(evt) };
         if status == 0 {
             Err(LeftError::XFailedStatus)
         } else {
+            self.get_modifier_mapping();
             Ok(())
+        }
+    }
+
+    /// Get modifier mapping
+    pub fn get_modifier_mapping(&mut self) {
+        let modifiers = [
+            "Shift".to_string(),
+            "NumLock".to_string(),
+            "Control".to_string(),
+            "Mod1".to_string(),
+            "Mod2".to_string(),
+            "Mod3".to_string(),
+            "Mod4".to_string(),
+            "Mod5".to_string(),
+        ];
+        unsafe {
+            let modifier_mapping_pointer = (self.xlib.XGetModifierMapping)(self.display);
+            for (modifier, i) in modifiers.iter().zip(0isize..) {
+                // We use Vec here as max_keypermod is unknown
+                let mut mapping = Vec::new();
+                let max_keypermod = (*modifier_mapping_pointer).max_keypermod;
+                for j in 0..max_keypermod {
+                    let keycode = *(*modifier_mapping_pointer)
+                        .modifiermap
+                        .offset(i * (max_keypermod as isize) + (j as isize));
+                    if let Ok(keysym) = self.keycode_to_keysym(keycode.into()) {
+                        mapping.push(keysym);
+                    } else {
+                        tracing::warn!(
+                            "Could not convert keycode {keycode} provided by XGetModifierMapping to keysym. Ignoring that key."
+                        );
+                    }
+                }
+                self.modifier_mapping.insert(modifier.clone(), mapping);
+            }
         }
     }
 

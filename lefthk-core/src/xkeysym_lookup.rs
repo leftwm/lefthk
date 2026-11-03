@@ -1,4 +1,5 @@
 #![allow(clippy::wildcard_imports)]
+use std::collections::HashMap;
 use std::os::raw::c_uint;
 use x11_dl::keysym::*;
 use x11_dl::xlib;
@@ -41,6 +42,18 @@ pub fn into_mod(key: &str) -> ModMask {
         "Mod5" => xlib::Mod5Mask,
         _ => 0,
     }
+}
+
+pub fn mask_from_keysym<S: ::std::hash::BuildHasher>(
+    key: u32,
+    modifier_mapping: &HashMap<String, Vec<u32>, S>,
+) -> Option<ModMask> {
+    for (modifier, keycodes) in modifier_mapping {
+        if keycodes.contains(&key) {
+            return Some(into_mod(modifier));
+        }
+    }
+    None
 }
 
 // We allow this because this function is simply a mapping wrapper.

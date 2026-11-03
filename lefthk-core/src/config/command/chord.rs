@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     config::{Keybind, command::utils::denormalize_function::DenormalizeCommandFunction},
     errors::Error,
-    worker::Worker,
+    worker::{StatefullKeybind, Worker},
 };
 
 use super::{Command, NormalizedCommand};
@@ -33,8 +33,14 @@ impl Command for Chord {
     }
 
     fn execute(&self, worker: &mut Worker) -> Error {
-        worker.xwrap.grab_keys(&self.0);
-        worker.chord_ctx.keybinds = Some(self.0.clone());
+        let sf_keybinds = self
+            .0
+            .clone()
+            .into_iter()
+            .map(StatefullKeybind::new)
+            .collect::<Vec<StatefullKeybind>>();
+        worker.xwrap.grab_keys(&sf_keybinds);
+        worker.chord_ctx.sf_keybinds = Some(sf_keybinds);
         Ok(())
     }
 
@@ -55,6 +61,7 @@ mod tests {
             command: Reload::new().normalize(),
             modifier: vec![],
             key: String::new(),
+            on_release: false,
         }]);
 
         let normalized = command.normalize();
