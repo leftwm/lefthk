@@ -1,6 +1,6 @@
 [package]
 name = "lefthk"
-version = "0.3.3"
+version = "0.4.0"
 edition = "2024"
 rust-version = "1.88.0" # MSRV MINIMUM SUPPORTED RUST VERSION
 license = "BSD-3-Clause"
@@ -10,7 +10,7 @@ description = "A hotkey daemon for Adventurers"
 
 [dependencies]
 clap = {version = "4.5.40", features = ["cargo"]}
-lefthk-core = { path = "../lefthk-core", version = '0.3' }
+lefthk-core = { path = "../lefthk-core", version = '0.4' }
 ron = "0.12.0"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0.12"
